@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 
-// Image Compressor Helper
+// --- Image Compressor Helper ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -42,93 +42,124 @@ async function compressImage(file: File): Promise<File> {
 }
 
 // -------------------------------------------------------------
-// Post Item Component (Handles Slider Dots, Likes, and Comments)
+// Guest Feed Post Component (Matches Host UI, No Delete Buttons)
 // -------------------------------------------------------------
-const PostItem = ({ post, onFullscreen, currentUserName, onRefresh }: any) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [commentText, setCommentText] = useState("");
-  const [showComments, setShowComments] = useState(false);
+const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [showHeart, setShowHeart] = useState(false);
 
-  const handleAddComment = async () => {
-    if (!commentText.trim() || !currentUserName) return;
-    await supabase.from('comments').insert([{ post_id: post.id, user_name: currentUserName, text: commentText }]);
-    setCommentText("");
+  const handleScroll = (e: any) => { setActiveIndex(Math.round(e.target.scrollLeft / e.target.clientWidth)); };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || !currentUserName) return;
+    await supabase.from('comments').insert([{ post_id: post.id, user_name: currentUserName, text: newComment }]);
+    setNewComment("");
     onRefresh();
   };
 
   const handleLike = async () => {
-    // Basic like increment logic (Assuming likes_count exists, or just UI for now)
     await supabase.from('posts').update({ likes_count: (post.likes_count || 0) + 1 }).eq('id', post.id);
     onRefresh();
   };
 
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-pink-100 overflow-hidden">
-      {/* Post Header */}
-      <div className="p-3 bg-pink-50 flex items-center gap-2">
-        <div className="w-8 h-8 bg-pink-200 text-pink-700 rounded-full flex items-center justify-center font-bold text-sm">
-          {post.user_name.charAt(0).toUpperCase()}
-        </div>
-        <span className="font-bold text-gray-700">{post.user_name}</span>
-      </div>
+  const handleDoubleTap = () => {
+    handleLike();
+    setShowHeart(true);
+    setTimeout(() => setShowHeart(false), 800);
+  };
 
-      {/* Image Slider with Dots */}
-      <div className="relative">
-        <div className="w-full h-[400px] bg-gray-100 relative">
-          <img 
-            src={post.urls[currentIndex]} 
-            alt="Wedding" 
-            className="w-full h-full object-cover cursor-pointer" 
-            onClick={() => onFullscreen(post.urls[currentIndex])} 
-          />
-          
-          {post.urls.length > 1 && (
-            <>
-              {/* Left/Right Arrows */}
-              <button onClick={() => setCurrentIndex(prev => prev === 0 ? post.urls.length - 1 : prev - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white w-8 h-8 rounded-full flex items-center justify-center z-10">❮</button>
-              <button onClick={() => setCurrentIndex(prev => prev === post.urls.length - 1 ? 0 : prev + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white w-8 h-8 rounded-full flex items-center justify-center z-10">❯</button>
-            </>
-          )}
+  const isHostPost = post.user_name === AppConfig.hostName;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-md border border-pink-100 overflow-hidden relative">
+      {/* Post Header (Profile Icon & Name) */}
+      <div className={`p-3 flex items-center justify-between ${isHostPost ? 'bg-pink-100' : 'bg-pink-50'}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isHostPost ? 'bg-pink-500 text-white' : 'bg-pink-200 text-pink-600'}`}>
+            {isHostPost ? '👑' : post.user_name.charAt(0).toUpperCase()}
+          </div>
+          <span className={`text-sm ${isHostPost ? 'font-extrabold text-pink-600 tracking-wide' : 'font-bold text-gray-700'}`}>
+            {post.user_name}
+          </span>
+        </div>
+        {/* NO DELETE BUTTONS FOR GUESTS */}
+      </div>
+      
+      {/* Images Slider */}
+      <div className="relative w-full group cursor-pointer" onDoubleClick={handleDoubleTap}>
+        <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
+          {post.urls.map((url: string, index: number) => (
+            <div key={index} className="w-full h-auto max-h-[500px] flex-shrink-0 snap-center relative" onClick={() => onFullscreen(url)}>
+              <img src={url} alt="Wedding" className="w-full h-full object-cover max-h-[500px]" />
+            </div>
+          ))}
         </div>
         
-        {/* Dots */}
+        {/* Double Tap Heart Overlay */}
+        {showHeart && <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"><div className="text-white text-8xl drop-shadow-2xl animate-bounce">❤️</div></div>}
+        
+        {/* Slider Dots */}
         {post.urls.length > 1 && (
-          <div className="flex justify-center gap-1.5 py-3 bg-white">
-            {post.urls.map((_: any, i: number) => (
-              <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentIndex ? "w-4 bg-pink-500" : "w-1.5 bg-pink-200"}`} />
-            ))}
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+            {post.urls.map((_: string, i: number) => <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "w-5 bg-pink-500" : "w-2 bg-white bg-opacity-80"}`} />)}
+          </div>
+        )}
+      </div>
+      
+      {/* Like and Comment Area */}
+      <div className="p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-6">
+          <button onClick={handleLike} className="flex items-center gap-1 text-gray-500 hover:text-red-500 transition-colors">
+            <span className="text-2xl transition-transform hover:scale-110">❤️</span>
+            <span className="font-bold">{post.likes_count || 0}</span>
+          </button>
+          <button onClick={() => setIsCommentOpen(true)} className="flex items-center gap-1 text-gray-500 hover:text-blue-500 transition-colors">
+            <span className="text-2xl">💬</span><span className="font-bold text-sm">{(post.comments || []).length} Comments</span>
+          </button>
+        </div>
+        {post.liked_by_host && (
+          <div className="text-xs text-gray-600 font-medium flex items-center gap-1">
+            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
           </div>
         )}
       </div>
 
-      {/* Like & Comment Buttons */}
-      <div className="p-3 border-t border-gray-50 flex items-center gap-4">
-        <button onClick={handleLike} className="flex items-center gap-1.5 text-gray-600 hover:text-pink-500 font-medium">
-          <span className="text-xl">❤️</span> {post.likes_count || 0}
-        </button>
-        <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1.5 text-gray-600 hover:text-pink-500 font-medium">
-          <span className="text-xl">💬</span> {(post.comments?.length) || 0}
-        </button>
-      </div>
-
-      {/* Comments Section */}
-      {showComments && (
-        <div className="p-3 bg-gray-50 border-t border-gray-100 flex flex-col gap-2">
-          {post.comments && post.comments.map((c: any) => (
-            <div key={c.id} className="text-sm">
-              <span className="font-bold text-gray-800 mr-2">{c.user_name}</span>
-              <span className="text-gray-600">{c.text}</span>
+      {/* Modern Comment Modal */}
+      {isCommentOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
+              <h3 className="font-bold text-gray-800 text-base">Comments</h3>
+              <button onClick={() => setIsCommentOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button>
             </div>
-          ))}
-          <div className="flex gap-2 mt-2">
-            <input 
-              type="text" 
-              value={commentText} 
-              onChange={(e) => setCommentText(e.target.value)} 
-              placeholder="Add a comment..." 
-              className="flex-1 bg-white border border-gray-200 rounded-full px-3 py-1.5 text-sm outline-none focus:border-pink-400"
-            />
-            <button onClick={handleAddComment} className="text-pink-500 font-bold px-2 text-sm">Post</button>
+            
+            <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
+              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
+              {(post.comments || []).map((c: any) => {
+                const isHostComment = c.user_name === AppConfig.hostName;
+                return (
+                  <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? 'bg-pink-50 border-pink-200' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 ${isHostComment ? 'bg-pink-500 text-white' : 'bg-pink-100 text-pink-600'}`}>
+                        {isHostComment ? '👑' : c.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <span className={`text-xs block mb-0.5 ${isHostComment ? 'font-extrabold text-pink-600 text-sm' : 'font-bold text-gray-800'}`}>{c.user_name}</span>
+                        <p className="text-gray-700 text-sm">{c.text}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-gray-100">
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 border border-pink-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/50 text-gray-800" />
+              <button type="submit" className="bg-pink-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-pink-600 transition shadow-sm">Post</button>
+            </form>
           </div>
         </div>
       )}
@@ -141,25 +172,27 @@ const PostItem = ({ post, onFullscreen, currentUserName, onRefresh }: any) => {
 // -------------------------------------------------------------
 export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState("feed");
-  const [viewType, setViewType] = useState("feed"); // Default is Feed now
+  const [viewType, setViewType] = useState("feed"); 
   const [posts, setPosts] = useState<any[]>([]);
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Name storage
+  // Name storage & Editing
   const [userName, setUserName] = useState("");
+  const [isEditNameOpen, setIsEditNameOpen] = useState(false);
+  const [tempName, setTempName] = useState("");
 
   // Upload States & Popup
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState("");
 
-  // Fullscreen Lightbox State
+  // Lightbox & Projector
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
-
-  // Projector / Slideshow States & Music
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Music
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -172,17 +205,24 @@ export default function GalleryPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
 
-  // Load Saved Name from Local Storage
+  // Load Saved Name
   useEffect(() => {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
       setUserName(savedName);
+    } else {
+      setIsEditNameOpen(true); // Ask for name initially
     }
   }, []);
 
-  const handleNameChange = (name: string) => {
-    setUserName(name);
-    localStorage.setItem("wedding_guest_name", name);
+  const saveName = () => {
+    if (tempName.trim()) {
+      setUserName(tempName);
+      localStorage.setItem("wedding_guest_name", tempName);
+      setIsEditNameOpen(false);
+    } else {
+      alert("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.");
+    }
   };
 
   const fetchData = async (isSilent = false) => {
@@ -202,7 +242,6 @@ export default function GalleryPage() {
 
   const slideshowUrls = posts.flatMap(p => p.urls || []);
 
-  // Slideshow Timer & Music
   useEffect(() => {
     if (!isProjectorOpen || slideshowUrls.length === 0) return;
     const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4000);
@@ -218,7 +257,7 @@ export default function GalleryPage() {
       audioRef.current.pause();
       setIsPlayingMusic(false);
     } else {
-      audioRef.current.play().catch(() => alert("Music playback blocked by browser. Click again."));
+      audioRef.current.play().catch(() => alert("Music playback blocked."));
       setIsPlayingMusic(true);
     }
   };
@@ -231,14 +270,13 @@ export default function GalleryPage() {
     }
   };
 
-  // Upload Photos with Compression (English Text)
+  // Upload Photos (English Text)
   const handlePhotoUpload = async (e: any) => {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
     
-    // Require name only if not saved
     if (!userName.trim()) {
-      alert("Please enter your name first!");
+      setIsEditNameOpen(true);
       return;
     }
 
@@ -309,7 +347,7 @@ export default function GalleryPage() {
 
   const handleSendGreeting = async (type: string) => {
     if (!userName.trim()) {
-      alert("Please enter your name!");
+      setIsEditNameOpen(true);
       return;
     }
 
@@ -347,36 +385,50 @@ export default function GalleryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 font-sans pb-28">
-      {/* Header */}
-      <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-4 sticky top-0 z-20 flex items-center justify-between border-b border-pink-100">
-        <h1 className="font-serif font-bold text-lg text-gray-800">{AppConfig.coupleNames}</h1>
-        <div className="flex gap-2">
-          {slideshowUrls.length > 0 && (
-            <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md flex items-center gap-1 animate-pulse">
-              🎬 Highlight Slideshow
-            </button>
-          )}
+    <div className="min-h-screen bg-pink-50 font-sans pb-28 relative">
+      
+      {/* Header - Center Aligned Name and Profile Icon */}
+      <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setTempName(userName); setIsEditNameOpen(true); }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-inner bg-pink-100 text-pink-600 border border-pink-200" title="Change Name">
+            {userName ? userName.charAt(0).toUpperCase() : '👤'}
+          </div>
         </div>
+        
+        <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center">
+          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1">{AppConfig.coupleNames}</h2>
+        </div>
+        
+        <div className="w-9"></div> {/* Empty div to balance header flex */}
       </div>
 
       {/* Tabs */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
-          <button onClick={() => setActiveTab("feed")} className={`flex-1 py-2 rounded-full text-sm font-bold transition ${activeTab === "feed" ? "bg-pink-500 text-white shadow" : "text-gray-500"}`}>📸 Photos</button>
-          <button onClick={() => setActiveTab("guestbook")} className={`flex-1 py-2 rounded-full text-sm font-bold transition ${activeTab === "guestbook" ? "bg-pink-500 text-white shadow" : "text-gray-500"}`}>📖 Guestbook</button>
+          <button onClick={() => setActiveTab("feed")} className={`flex-1 py-2 rounded-full text-sm font-bold transition ${activeTab === "feed" ? "bg-pink-500 text-white shadow" : "text-gray-500 hover:bg-pink-50"}`}>📸 Photos</button>
+          <button onClick={() => setActiveTab("guestbook")} className={`flex-1 py-2 rounded-full text-sm font-bold transition ${activeTab === "guestbook" ? "bg-pink-500 text-white shadow" : "text-gray-500 hover:bg-pink-50"}`}>📖 Guestbook</button>
         </div>
       </div>
 
-      <div className="px-3 max-w-lg mx-auto">
+      <div className="px-2 max-w-lg mx-auto">
         {isLoading ? (
-          <div className="flex justify-center items-center h-40"><p className="text-pink-500 font-bold animate-pulse">Loading...</p></div>
+          <div className="flex justify-center items-center h-40"><p className="text-pink-500 font-bold animate-pulse">Loading Gallery...</p></div>
         ) : activeTab === "feed" ? (
           <div>
-            <div className="flex justify-end mb-3">
-              <div className="flex gap-1 bg-white p-1 rounded-lg border border-pink-200 shadow-sm">
-                <button onClick={() => setViewType("grid")} className={`px-3 py-1 rounded text-xs ${viewType === 'grid' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Grid</button>
-                <button onClick={() => setViewType("feed")} className={`px-3 py-1 rounded text-xs ${viewType === 'feed' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Feed</button>
+            <div className="flex justify-between items-center mb-3 px-2">
+              <h3 className="font-bold text-gray-700 text-sm">Gallery</h3>
+              <div className="flex gap-2 items-center">
+                {/* Highlight/Projector button ONLY visible in Grid mode */}
+                {slideshowUrls.length > 0 && viewType === 'grid' && (
+                  <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform transform hover:scale-105 animate-pulse">
+                    🎬 Play ({slideshowUrls.length})
+                  </button>
+                )}
+                
+                <div className="flex gap-1 bg-white p-1 rounded-lg border border-pink-200 shadow-sm">
+                  <button onClick={() => setViewType("grid")} className={`px-2 py-1 rounded text-xs transition-all ${viewType === 'grid' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Grid</button>
+                  <button onClick={() => setViewType("feed")} className={`px-2 py-1 rounded text-xs transition-all ${viewType === 'feed' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Feed</button>
+                </div>
               </div>
             </div>
 
@@ -391,21 +443,16 @@ export default function GalleryPage() {
             ) : (
               <div className="flex flex-col gap-6">
                 {posts.map((post) => (
-                  <PostItem key={post.id} post={post} onFullscreen={setFullscreenImage} currentUserName={userName} onRefresh={() => fetchData(true)} />
+                  <GuestFeedPost key={post.id} post={post} onFullscreen={setFullscreenImage} currentUserName={userName} onRefresh={() => fetchData(true)} />
                 ))}
               </div>
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 px-1">
             {/* Guestbook Form */}
             <div className="bg-white p-4 rounded-3xl shadow-sm border border-pink-200 flex flex-col gap-3">
               <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
-              
-              {!userName && (
-                <input type="text" value={userName} onChange={(e) => handleNameChange(e.target.value)} placeholder="ඔබේ නම (Your Name)..." className="border border-pink-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800" />
-              )}
-              
               <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න..." className="border border-pink-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800 h-20 resize-none" />
               <button onClick={() => handleSendGreeting('text')} className="bg-pink-500 text-white py-2.5 rounded-xl font-bold text-sm shadow hover:bg-pink-600 transition">පණිවිඩය යවන්න</button>
 
@@ -430,13 +477,21 @@ export default function GalleryPage() {
 
             {/* Greetings Feed */}
             <div className="flex flex-col gap-3">
-              {greetings.map((g) => (
-                <div key={g.id} className="bg-white p-4 rounded-2xl shadow-sm border border-pink-100 flex flex-col gap-2">
-                  <span className="font-bold text-gray-800 text-xs">{g.user_name}</span>
-                  {g.type === "text" && <p className="text-gray-600 text-sm italic bg-pink-50 p-3 rounded-xl">"{g.content}"</p>}
-                  {g.type === "voice" && <audio controls src={g.content} className="w-full h-10 rounded-full" />}
-                </div>
-              ))}
+              {greetings.map((greeting) => {
+                const isHostMsg = greeting.user_name === AppConfig.hostName;
+                return (
+                  <div key={greeting.id} className={`bg-white p-4 rounded-2xl shadow-sm border ${isHostMsg ? 'border-pink-300 bg-pink-50/30' : 'border-pink-100'} relative`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isHostMsg ? 'bg-pink-500 text-white' : 'bg-pink-100 text-pink-600'}`}>
+                        {isHostMsg ? '👑' : greeting.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div><span className={`text-sm block ${isHostMsg ? 'font-extrabold text-pink-600' : 'font-bold text-gray-800'}`}>{greeting.user_name}</span></div>
+                    </div>
+                    {greeting.type === "text" && <p className="text-gray-600 text-sm leading-relaxed bg-pink-50/50 p-3 rounded-xl italic">"{greeting.content}"</p>}
+                    {greeting.type === "voice" && <audio controls src={greeting.content} className="w-full h-10 outline-none rounded-full bg-purple-50" />}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -445,40 +500,58 @@ export default function GalleryPage() {
       {/* Floating Upload Button */}
       <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
 
-      {/* Upload Popup Modal (Camera & Gallery Separate) */}
+      {/* Upload Popup Modal */}
       {isUploadOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-gray-800 text-lg">Add Photos 📸</h3>
               <button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold">×</button>
             </div>
             
-            {!userName && (
-              <input type="text" value={userName} onChange={(e) => handleNameChange(e.target.value)} placeholder="Your Name..." className="border border-pink-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800" />
-            )}
-
             <div className="grid grid-cols-2 gap-3 mt-2">
-              {/* Camera Button */}
               <label className="bg-pink-50 text-pink-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-pink-100 transition cursor-pointer border border-pink-100">
                 <span className="text-3xl">📷</span>
                 <span className="text-sm">Camera</span>
                 <input type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" />
               </label>
 
-              {/* Gallery Button */}
               <label className="bg-purple-50 text-purple-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-purple-100 transition cursor-pointer border border-purple-100">
                 <span className="text-3xl">🖼️</span>
                 <span className="text-sm">Gallery</span>
                 <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
               </label>
             </div>
-            <p className="text-xs text-center text-gray-400 mt-2">Photos will be compressed automatically for fast uploading.</p>
+            <p className="text-xs text-center text-gray-400 mt-2">Photos will be compressed automatically.</p>
           </div>
         </div>
       )}
 
-      {/* Uploading Loading Popup (English Text) */}
+      {/* Edit Name Modal */}
+      {isEditNameOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
+            <h3 className="font-bold text-gray-800 text-center text-lg">{userName ? "ඔබේ නම වෙනස් කරන්න" : "කරුණාකර නම ඇතුළත් කරන්න"}</h3>
+            <div className="flex justify-center mb-2">
+              <div className="w-16 h-16 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center text-3xl font-bold shadow-inner">
+                {tempName ? tempName.charAt(0).toUpperCase() : '👤'}
+              </div>
+            </div>
+            <input 
+              type="text" 
+              value={tempName} 
+              onChange={(e) => setTempName(e.target.value)} 
+              placeholder="Your Name..." 
+              className="border-2 border-pink-200 rounded-xl px-4 py-3 text-center font-bold text-gray-800 focus:outline-none focus:border-pink-500 bg-pink-50/50" 
+            />
+            <button onClick={saveName} className="bg-pink-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-pink-600 transition">
+              Save Name
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Uploading Loading Popup */}
       {uploading && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
           <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
@@ -494,15 +567,13 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Projector / Slideshow with Music Button */}
+      {/* Projector / Slideshow with Music */}
       {isProjectorOpen && (
-        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-xl">
           <button onClick={handleCloseProjector} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50">×</button>
-          
           <button onClick={toggleMusic} className="absolute top-6 left-6 bg-white/90 text-gray-800 px-4 py-2 rounded-full font-bold text-xs z-50 shadow-lg flex items-center gap-2">
             {isPlayingMusic ? "🎵 Music Playing (Pause)" : "🔇 Play Background Music"}
           </button>
-
           {slideshowUrls.length > 0 && (
             <img src={slideshowUrls[currentSlide]} alt="Slide" className="absolute inset-0 w-full h-full object-contain" />
           )}
