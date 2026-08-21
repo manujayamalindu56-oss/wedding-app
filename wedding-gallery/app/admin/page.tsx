@@ -68,7 +68,7 @@ function AdminFeedPost({
         {showHeart && <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"><div className="text-white text-8xl drop-shadow-2xl animate-bounce">❤️</div></div>}
         {post.urls.length > 1 && (
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-            {post.urls.map((_, i) => <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "w-5 bg-pink-500" : "w-2 bg-white bg-opacity-80"}`} />)}
+            {post.urls.map((_: string, i: number) => <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "w-5 bg-pink-500" : "w-2 bg-white bg-opacity-80"}`} />)}
           </div>
         )}
       </div>

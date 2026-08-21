@@ -64,7 +64,7 @@ function FeedPost({ post, onUpdate, currentUserName }: { post: any, onUpdate: ()
         )}
         {post.urls.length > 1 && (
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-            {post.urls.map((_, i) => (
+            {post.urls.map((_: string, i: number) => (
               <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "w-5 bg-pink-500" : "w-2 bg-white bg-opacity-80"}`} />
             ))}
           </div>
