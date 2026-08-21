@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 
-// --- Image Compressor Helper ---
+// --- Image Compressor Helper (Fix for iPhone HEIC issue included in input accept tags) ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -42,13 +42,17 @@ async function compressImage(file: File): Promise<File> {
 }
 
 // -------------------------------------------------------------
-// Guest Feed Post Component (Matches Host UI, No Delete Buttons)
+// Guest Feed Post Component
 // -------------------------------------------------------------
-const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) => {
+const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [showHeart, setShowHeart] = useState(false);
+  
+  // Local states for immediate Like updates
+  const [likesCount, setLikesCount] = useState(post.likes || 0);
+  const [hasLikedLocally, setHasLikedLocally] = useState(false);
 
   const handleScroll = (e: any) => { setActiveIndex(Math.round(e.target.scrollLeft / e.target.clientWidth)); };
 
@@ -61,21 +65,25 @@ const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) 
   };
 
   const handleLike = async () => {
-    await supabase.from('posts').update({ likes_count: (post.likes_count || 0) + 1 }).eq('id', post.id);
-    onRefresh();
+    if (hasLikedLocally) return; // එක සැරයක් ලයික් කළාම මේ session එකේ ආයෙත් එකතු වෙන්නේ නෑ
+    setHasLikedLocally(true);
+    setLikesCount((prev: number) => prev + 1);
+    
+    // Admin එකේ use කරන "likes" column එකම update කරනවා
+    await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
   };
 
-  const handleDoubleTap = () => {
+  const handleDoubleTap = (e: any) => {
+    e.preventDefault();
     handleLike();
     setShowHeart(true);
-    setTimeout(() => setShowHeart(false), 800);
+    setTimeout(() => setShowHeart(false), 1000); // 1s animation duration
   };
 
   const isHostPost = post.user_name === AppConfig.hostName;
 
   return (
     <div className="bg-white rounded-2xl shadow-md border border-pink-100 overflow-hidden relative">
-      {/* Post Header (Profile Icon & Name) */}
       <div className={`p-3 flex items-center justify-between ${isHostPost ? 'bg-pink-100' : 'bg-pink-50'}`}>
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isHostPost ? 'bg-pink-500 text-white' : 'bg-pink-200 text-pink-600'}`}>
@@ -85,23 +93,25 @@ const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) 
             {post.user_name}
           </span>
         </div>
-        {/* NO DELETE BUTTONS FOR GUESTS */}
       </div>
       
-      {/* Images Slider */}
-      <div className="relative w-full group cursor-pointer" onDoubleClick={handleDoubleTap}>
+      {/* Images Slider (No Fullscreen on Click, Double Tap to Like) */}
+      <div className="relative w-full group select-none" onDoubleClick={handleDoubleTap}>
         <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
           {post.urls.map((url: string, index: number) => (
-            <div key={index} className="w-full h-auto max-h-[500px] flex-shrink-0 snap-center relative" onClick={() => onFullscreen(url)}>
-              <img src={url} alt="Wedding" className="w-full h-full object-cover max-h-[500px]" />
+            <div key={index} className="w-full h-auto max-h-[500px] flex-shrink-0 snap-center relative">
+              <img src={url} alt="Wedding" className="w-full h-full object-cover max-h-[500px] pointer-events-none" />
             </div>
           ))}
         </div>
         
-        {/* Double Tap Heart Overlay */}
-        {showHeart && <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"><div className="text-white text-8xl drop-shadow-2xl animate-bounce">❤️</div></div>}
+        {/* Instagram Style Heart Animation */}
+        {showHeart && (
+          <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+            <div className="text-white text-8xl drop-shadow-2xl animate-insta-heart">❤️</div>
+          </div>
+        )}
         
-        {/* Slider Dots */}
         {post.urls.length > 1 && (
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
             {post.urls.map((_: string, i: number) => <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === activeIndex ? "w-5 bg-pink-500" : "w-2 bg-white bg-opacity-80"}`} />)}
@@ -112,11 +122,13 @@ const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) 
       {/* Like and Comment Area */}
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-center gap-6">
-          <button onClick={handleLike} className="flex items-center gap-1 text-gray-500 hover:text-red-500 transition-colors">
-            <span className="text-2xl transition-transform hover:scale-110">❤️</span>
-            <span className="font-bold">{post.likes_count || 0}</span>
+          <button onClick={handleLike} className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors">
+            <span className={`text-2xl transition-transform ${hasLikedLocally ? 'scale-110 text-red-500' : 'hover:scale-110'}`}>
+              {hasLikedLocally ? '❤️' : '🤍'}
+            </span>
+            <span className="font-bold">{likesCount}</span>
           </button>
-          <button onClick={() => setIsCommentOpen(true)} className="flex items-center gap-1 text-gray-500 hover:text-blue-500 transition-colors">
+          <button onClick={() => setIsCommentOpen(true)} className="flex items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors">
             <span className="text-2xl">💬</span><span className="font-bold text-sm">{(post.comments || []).length} Comments</span>
           </button>
         </div>
@@ -127,7 +139,7 @@ const GuestFeedPost = ({ post, onFullscreen, currentUserName, onRefresh }: any) 
         )}
       </div>
 
-      {/* Modern Comment Modal */}
+      {/* Comment Modal */}
       {isCommentOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
@@ -177,26 +189,21 @@ export default function GalleryPage() {
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Name storage & Editing
   const [userName, setUserName] = useState("");
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
   const [tempName, setTempName] = useState("");
 
-  // Upload States & Popup
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState("");
 
-  // Lightbox & Projector
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   
-  // Music
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Guestbook States
   const [greetingText, setGreetingText] = useState("");
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
@@ -205,13 +212,21 @@ export default function GalleryPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
 
-  // Load Saved Name
+  // Initialize Music Player safely
+  useEffect(() => {
+    audioRef.current = new Audio(AppConfig.backgroundMusicUrl);
+    audioRef.current.loop = true;
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
+
   useEffect(() => {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
       setUserName(savedName);
     } else {
-      setIsEditNameOpen(true); // Ask for name initially
+      setIsEditNameOpen(true);
     }
   }, []);
 
@@ -249,16 +264,17 @@ export default function GalleryPage() {
   }, [isProjectorOpen, slideshowUrls.length]);
 
   const toggleMusic = () => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(AppConfig.backgroundMusicUrl);
-      audioRef.current.loop = true;
-    }
+    if (!audioRef.current) return;
     if (isPlayingMusic) {
       audioRef.current.pause();
       setIsPlayingMusic(false);
     } else {
-      audioRef.current.play().catch(() => alert("Music playback blocked."));
-      setIsPlayingMusic(true);
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsPlayingMusic(true))
+          .catch(() => alert("කරුණාකර බ්‍රවුසරයේ අවසර ලබාදීමට නැවත වරක් Music බොත්තම ඔබන්න."));
+      }
     }
   };
 
@@ -270,7 +286,6 @@ export default function GalleryPage() {
     }
   };
 
-  // Upload Photos (English Text)
   const handlePhotoUpload = async (e: any) => {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
@@ -298,7 +313,7 @@ export default function GalleryPage() {
         uploadedUrls.push(publicUrl);
       }
 
-      await supabase.from('posts').insert([{ user_name: userName, urls: uploadedUrls }]);
+      await supabase.from('posts').insert([{ user_name: userName, urls: uploadedUrls, likes: 0 }]);
       setIsUploadOpen(false);
       setUploading(false);
       fetchData(true);
@@ -350,7 +365,6 @@ export default function GalleryPage() {
       setIsEditNameOpen(true);
       return;
     }
-
     if (type === 'text' && !greetingText.trim()) return;
     if (type === 'voice' && !voiceBlob) return;
 
@@ -386,8 +400,21 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-28 relative">
-      
-      {/* Header - Center Aligned Name and Profile Icon */}
+      {/* Instagram Heart Animation CSS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes instaHeart {
+          0% { transform: scale(0); opacity: 0; }
+          15% { transform: scale(1.2); opacity: 1; }
+          30% { transform: scale(1); opacity: 1; }
+          70% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(0); opacity: 0; }
+        }
+        .animate-insta-heart {
+          animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+      `}} />
+
+      {/* Header */}
       <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setTempName(userName); setIsEditNameOpen(true); }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-inner bg-pink-100 text-pink-600 border border-pink-200" title="Change Name">
@@ -399,7 +426,7 @@ export default function GalleryPage() {
           <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1">{AppConfig.coupleNames}</h2>
         </div>
         
-        <div className="w-9"></div> {/* Empty div to balance header flex */}
+        <div className="w-9"></div>
       </div>
 
       {/* Tabs */}
@@ -418,7 +445,6 @@ export default function GalleryPage() {
             <div className="flex justify-between items-center mb-3 px-2">
               <h3 className="font-bold text-gray-700 text-sm">Gallery</h3>
               <div className="flex gap-2 items-center">
-                {/* Highlight/Projector button ONLY visible in Grid mode */}
                 {slideshowUrls.length > 0 && viewType === 'grid' && (
                   <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform transform hover:scale-105 animate-pulse">
                     🎬 Play ({slideshowUrls.length})
@@ -443,14 +469,13 @@ export default function GalleryPage() {
             ) : (
               <div className="flex flex-col gap-6">
                 {posts.map((post) => (
-                  <GuestFeedPost key={post.id} post={post} onFullscreen={setFullscreenImage} currentUserName={userName} onRefresh={() => fetchData(true)} />
+                  <GuestFeedPost key={post.id} post={post} currentUserName={userName} onRefresh={() => fetchData(true)} />
                 ))}
               </div>
             )}
           </div>
         ) : (
           <div className="flex flex-col gap-6 px-1">
-            {/* Guestbook Form */}
             <div className="bg-white p-4 rounded-3xl shadow-sm border border-pink-200 flex flex-col gap-3">
               <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
               <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න..." className="border border-pink-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800 h-20 resize-none" />
@@ -475,7 +500,6 @@ export default function GalleryPage() {
               </div>
             </div>
 
-            {/* Greetings Feed */}
             <div className="flex flex-col gap-3">
               {greetings.map((greeting) => {
                 const isHostMsg = greeting.user_name === AppConfig.hostName;
@@ -497,7 +521,6 @@ export default function GalleryPage() {
         )}
       </div>
 
-      {/* Floating Upload Button */}
       <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
 
       {/* Upload Popup Modal */}
@@ -513,13 +536,15 @@ export default function GalleryPage() {
               <label className="bg-pink-50 text-pink-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-pink-100 transition cursor-pointer border border-pink-100">
                 <span className="text-3xl">📷</span>
                 <span className="text-sm">Camera</span>
-                <input type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" />
+                {/* Fixed for iPhone: HEIC format converted to JPG automatically by iOS */}
+                <input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handlePhotoUpload} className="hidden" />
               </label>
 
               <label className="bg-purple-50 text-purple-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-purple-100 transition cursor-pointer border border-purple-100">
                 <span className="text-3xl">🖼️</span>
                 <span className="text-sm">Gallery</span>
-                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+                {/* Fixed for iPhone */}
+                <input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handlePhotoUpload} className="hidden" />
               </label>
             </div>
             <p className="text-xs text-center text-gray-400 mt-2">Photos will be compressed automatically.</p>
@@ -551,7 +576,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Uploading Loading Popup */}
       {uploading && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
           <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
@@ -559,7 +583,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Fullscreen Image Lightbox */}
       {fullscreenImage && (
         <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center p-2" onClick={() => setFullscreenImage(null)}>
           <button className="absolute top-4 right-4 text-white text-3xl font-bold bg-white/20 w-10 h-10 rounded-full flex items-center justify-center">×</button>
@@ -567,7 +590,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Projector / Slideshow with Music */}
       {isProjectorOpen && (
         <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-xl">
           <button onClick={handleCloseProjector} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50">×</button>
