@@ -105,10 +105,10 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
           ))}
         </div>
         
-        {/* Instagram Style Heart Animation */}
+        {/* Instagram Style Rose Heart Animation */}
         {showHeart && (
           <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-            <div className="text-white text-8xl drop-shadow-2xl animate-insta-heart">❤️</div>
+            <div className="text-rose-500 text-[8rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div>
           </div>
         )}
         
@@ -122,9 +122,9 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
       {/* Like and Comment Area */}
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-center gap-6">
-          <button onClick={handleLike} className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 transition-colors">
-            <span className={`text-2xl transition-transform ${hasLikedLocally ? 'scale-110 text-red-500' : 'hover:scale-110'}`}>
-              {hasLikedLocally ? '❤️' : '🤍'}
+          <button onClick={handleLike} className="flex items-center gap-1.5 text-gray-500 hover:text-rose-500 transition-colors">
+            <span className={`text-3xl leading-none transition-transform ${hasLikedLocally ? 'scale-110 text-rose-500' : 'hover:scale-110 text-gray-400'}`}>
+              {hasLikedLocally ? '♥' : '♡'}
             </span>
             <span className="font-bold">{likesCount}</span>
           </button>
@@ -255,7 +255,8 @@ export default function GalleryPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const slideshowUrls = posts.flatMap(p => p.urls || []);
+  // Show ONLY selected_photos (Favorites) in the Slideshow
+  const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
   useEffect(() => {
     if (!isProjectorOpen || slideshowUrls.length === 0) return;
@@ -447,13 +448,13 @@ export default function GalleryPage() {
               <div className="flex gap-2 items-center">
                 {slideshowUrls.length > 0 && viewType === 'grid' && (
                   <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform transform hover:scale-105 animate-pulse">
-                    🎬 Play ({slideshowUrls.length})
+                    🎬 Favorites ({slideshowUrls.length})
                   </button>
                 )}
                 
                 <div className="flex gap-1 bg-white p-1 rounded-lg border border-pink-200 shadow-sm">
-                  <button onClick={() => setViewType("grid")} className={`px-2 py-1 rounded text-xs transition-all ${viewType === 'grid' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Grid</button>
-                  <button onClick={() => setViewType("feed")} className={`px-2 py-1 rounded text-xs transition-all ${viewType === 'feed' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>Feed</button>
+                  <button onClick={() => setViewType("grid")} className={`px-2 py-1 rounded text-xs transition-all flex items-center gap-1 ${viewType === 'grid' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>⊞ Grid</button>
+                  <button onClick={() => setViewType("feed")} className={`px-2 py-1 rounded text-xs transition-all flex items-center gap-1 ${viewType === 'feed' ? 'bg-pink-100 text-pink-600 font-bold' : 'text-gray-400'}`}>☰ Feed</button>
                 </div>
               </div>
             </div>
