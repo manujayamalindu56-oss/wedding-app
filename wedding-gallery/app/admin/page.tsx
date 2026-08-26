@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { AppConfig } from "@/lib/config";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
-// --- Image Compressor Helper (Fix for fast upload) ---
+// --- Image Compressor Helper ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -83,7 +85,7 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
 };
 
 // -------------------------------------------------------------
-// Admin Greeting Component (Guestbook with Double Tap Like)
+// Admin Greeting Component
 // -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   const [showHeart, setShowHeart] = useState(false);
@@ -105,7 +107,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
         <button onClick={(e) => { e.stopPropagation(); onPin(greeting.id, greeting.is_pinned || false); }} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-gray-200 transition-all transform hover:scale-110 ${greeting.is_pinned ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-gray-50 text-gray-400 hover:bg-yellow-50'}`} title="Pin">📌</button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(greeting.id); }} className="bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-gray-200 transition-all transform hover:scale-110" title="Delete">🗑️</button>
       </div>
-      
+
       <div className="flex items-center gap-2 mb-3 pr-20 relative z-10">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isHostMsg ? 'bg-pink-500 text-white' : 'bg-pink-100 text-pink-600'}`}>
           {isHostMsg ? '👑' : greeting.user_name.charAt(0).toUpperCase()}
@@ -116,7 +118,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
           </span>
         </div>
       </div>
-      
+
       <div className="relative z-10">
         {greeting.type === "text" && <p className="text-gray-600 text-sm leading-relaxed bg-pink-50/50 p-3 rounded-xl italic pointer-events-none">"{greeting.content}"</p>}
         {greeting.type === "voice" && (
@@ -130,7 +132,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
         @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
         .animate-insta-heart { animation: instaHeart 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
       `}} />
-      
+
       {showHeart && (
         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <div className="text-rose-500 text-[6rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div>
@@ -206,7 +208,7 @@ function AdminFeedPost({
           <button onClick={() => onDeleteFullPost(post.id)} className="bg-white text-gray-400 hover:bg-red-500 hover:text-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-gray-200 transition-all transform hover:scale-110" title="Delete Entire Post">🗑️</button>
         </div>
       </div>
-      
+
       <div className="relative w-full group cursor-pointer select-none" onDoubleClick={handleDoubleTap}>
         <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
           {post.urls.map((url: string, index: number) => (
@@ -216,7 +218,7 @@ function AdminFeedPost({
             </div>
           ))}
         </div>
-        
+
         {showHeart && (
           <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
             <div className="text-rose-500 text-[8rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div>
@@ -229,7 +231,7 @@ function AdminFeedPost({
           </div>
         )}
       </div>
-      
+
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-center gap-6">
           <button onClick={handleHostLike} className="flex items-center gap-1 text-gray-500 hover:text-rose-500 transition-colors">
@@ -299,11 +301,11 @@ export default function AdminPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [newGreetingComment, setNewGreetingComment] = useState("");
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   // Upload States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -394,7 +396,7 @@ export default function AdminPage() {
     }
     setPosts(posts.map(p => p.id === postId ? { ...p, selected_photos: newSelected } : p));
     await supabase.from('posts').update({ selected_photos: newSelected }).eq('id', postId);
-    
+
     if (fullscreenData && fullscreenData.post.id === postId) {
       setFullscreenData({ ...fullscreenData, post: { ...fullscreenData.post, selected_photos: newSelected }});
     }
@@ -403,21 +405,21 @@ export default function AdminPage() {
   const handleHostUpload = async (e: any) => {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
-    
+
     setUploading(true);
     try {
       const uploadedUrls = [];
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`Compressing image (${i + 1}/${files.length})...`);
         const compressed = await compressImage(files[i]);
-        
+
         setUploadProgressText(`Uploading image (${i + 1}/${files.length})...`);
         const ext = compressed.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-        
+
         const { error: uploadError } = await supabase.storage.from('wedding-photos').upload(fileName, compressed);
         if (uploadError) throw uploadError;
-        
+
         const { data: { publicUrl } } = supabase.storage.from('wedding-photos').getPublicUrl(fileName);
         uploadedUrls.push(publicUrl);
       }
@@ -502,31 +504,33 @@ export default function AdminPage() {
     const urlsToDownload = type === 'all' 
       ? posts.flatMap(p => p.urls) 
       : posts.flatMap(p => p.selected_photos || []);
-      
+
     if (urlsToDownload.length === 0) {
       alert("බාගත කිරීමට ඡායාරූප නොමැත!");
       return;
     }
-    
-    alert(`ඡායාරූප ${urlsToDownload.length} ක් බාගත කිරීම ආරම්භ වේ... (Browser Popup Allow කරන්න)`);
-    
-    for (let i = 0; i < urlsToDownload.length; i++) {
-      try {
+
+    setUploading(true);
+    setUploadProgressText("Zipping Photos...");
+
+    try {
+      const zip = new JSZip();
+      
+      for (let i = 0; i < urlsToDownload.length; i++) {
         const response = await fetch(urlsToDownload[i]);
         const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.style.display = 'none';
-        link.href = blobUrl;
-        link.download = `Wedding_${type}_${i+1}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      } catch (err) {
-        console.error("Download error:", err);
+        zip.file(`Wedding_Photo_${i + 1}.jpg`, blob);
       }
-      await new Promise(r => setTimeout(r, 600)); 
+
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `Wedding_Photos_${type === 'all' ? 'All' : 'Favorites'}.zip`);
+      setUploading(false);
+      alert("සාර්ථකව බාගත කරන ලදී!");
+
+    } catch (err) {
+      console.error("Download error:", err);
+      setUploading(false);
+      alert("බාගත කිරීම අසාර්ථකයි.");
     }
   };
 
@@ -556,17 +560,17 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-24 relative">
-      {/* Header Updated with Couple Name */}
-      <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
-        <div className="flex items-center gap-1.5 bg-pink-50 text-pink-600 px-3 py-1.5 rounded-full border border-pink-100 shadow-inner font-bold text-xs tracking-wide z-10">
-          <span className="text-sm">👩‍❤️‍👨</span> {AppConfig.hostName}
-        </div>
-        
-        <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-1/2">
-          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
+      {/* Header Updated with Smaller Name and Emoji Only Tag */}
+      <div className="bg-white px-3 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
+        <div className="flex items-center bg-pink-50 px-2 py-1.5 rounded-full border border-pink-100 shadow-inner z-10" title="Host View">
+          <span className="text-lg leading-none">👩‍❤️‍👨</span>
         </div>
 
-        <button onClick={handleLogout} className="text-xs font-bold text-gray-400 hover:text-red-500 transition border px-2 py-1 rounded-lg z-10 bg-white">Logout</button>
+        <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-[60%]">
+          <h2 className="text-gray-800 font-extrabold text-lg leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
+        </div>
+
+        <button onClick={handleLogout} className="text-[10px] font-bold text-gray-400 hover:text-red-500 transition border px-2 py-1 rounded-lg z-10 bg-white">Logout</button>
       </div>
 
       <div className="flex justify-center mb-4 px-4">
@@ -584,7 +588,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center mb-3 px-2">
               <h3 className="font-bold text-gray-700 text-sm">Photos Control</h3>
               <div className="flex gap-2 items-center">
-                
+
                 {viewType === 'grid' && (
                   <div className="relative">
                     <button onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)} className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 transition border border-blue-200">
@@ -606,7 +610,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Added Favorites button to Grid view above the images */}
             {viewType === "grid" && slideshowUrls.length > 0 && (
               <div className="mb-3 px-2 flex justify-end">
                 <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-transform transform hover:scale-105 animate-pulse">
@@ -689,9 +692,9 @@ export default function AdminPage() {
       {fullscreenData && (
         <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-2 backdrop-blur-xl">
           <button className="absolute top-6 right-6 text-white text-3xl font-bold bg-white/20 w-12 h-12 rounded-full flex items-center justify-center z-50 hover:bg-red-500 transition" onClick={() => setFullscreenData(null)}>×</button>
-          
+
           <img src={fullscreenData.url} alt="Fullscreen" className="max-w-full max-h-full object-contain rounded-lg mb-20" />
-          
+
           <div className="absolute bottom-6 flex items-center justify-center gap-8 bg-white/10 px-8 py-4 rounded-full backdrop-blur-md border border-white/20">
             <button onClick={() => toggleSlideshow(fullscreenData.post.id, fullscreenData.url, fullscreenData.post.selected_photos || [])} className="text-4xl transition-transform hover:scale-110 flex flex-col items-center gap-1">
               {(() => {
@@ -701,7 +704,7 @@ export default function AdminPage() {
               })()}
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Fav</span>
             </button>
-            
+
             <button onClick={async () => {
               try {
                 const res = await fetch(fullscreenData.url);
@@ -724,6 +727,18 @@ export default function AdminPage() {
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Del</span>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Projector / Slideshow with Music */}
+      {isProjectorOpen && (
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-xl">
+          <button onClick={() => setIsProjectorOpen(false)} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl transition z-50 backdrop-blur-md">×</button>
+          {slideshowUrls.length === 0 ? (
+            <p className="text-white text-xl">Slideshow සඳහා ඡායාරූප තෝරා නොමැත.</p>
+          ) : (
+            <>{slideshowUrls.map((url, idx) => <img key={idx} src={url} alt="Projector Slide" className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`} />)}</>
+          )}
         </div>
       )}
     </div>
