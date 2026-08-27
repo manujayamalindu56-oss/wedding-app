@@ -310,7 +310,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Upbeat, warm & bright track. (Replace this URL if you have the original song uploaded in Supabase)
-    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
+    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
