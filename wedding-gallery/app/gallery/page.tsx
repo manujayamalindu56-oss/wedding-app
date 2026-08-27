@@ -65,11 +65,10 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   };
 
   const handleLike = async () => {
-    if (hasLikedLocally) return; // එක සැරයක් ලයික් කළාම මේ session එකේ ආයෙත් එකතු වෙන්නේ නෑ
+    if (hasLikedLocally) return; 
     setHasLikedLocally(true);
     setLikesCount((prev: number) => prev + 1);
     
-    // Admin එකේ use කරන "likes" column එකම update කරනවා
     await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
   };
 
@@ -77,13 +76,13 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
     e.preventDefault();
     handleLike();
     setShowHeart(true);
-    setTimeout(() => setShowHeart(false), 1000); // 1s animation duration
+    setTimeout(() => setShowHeart(false), 1000); 
   };
 
   const isHostPost = post.user_name === AppConfig.hostName;
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-pink-100 overflow-hidden relative">
+    <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : 'border-pink-100'}`}>
       <div className={`p-3 flex items-center justify-between ${isHostPost ? 'bg-pink-100' : 'bg-pink-50'}`}>
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isHostPost ? 'bg-pink-500 text-white' : 'bg-pink-200 text-pink-600'}`}>
@@ -92,10 +91,10 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
           <span className={`text-sm ${isHostPost ? 'font-extrabold text-pink-600 tracking-wide' : 'font-bold text-gray-700'}`}>
             {post.user_name}
           </span>
+          {post.is_pinned && <span className="text-[10px] bg-yellow-100 text-yellow-600 font-bold px-2 py-0.5 rounded-full ml-1 uppercase">Pinned 📌</span>}
         </div>
       </div>
       
-      {/* Images Slider (No Fullscreen on Click, Double Tap to Like) */}
       <div className="relative w-full group select-none" onDoubleClick={handleDoubleTap}>
         <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
           {post.urls.map((url: string, index: number) => (
@@ -105,7 +104,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
           ))}
         </div>
         
-        {/* Instagram Style Rose Heart Animation */}
         {showHeart && (
           <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
             <div className="text-rose-500 text-[8rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div>
@@ -119,7 +117,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
         )}
       </div>
       
-      {/* Like and Comment Area */}
       <div className="p-4 flex flex-col gap-3">
         <div className="flex items-center gap-6">
           <button onClick={handleLike} className="flex items-center gap-1.5 text-gray-500 hover:text-rose-500 transition-colors">
@@ -139,7 +136,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
         )}
       </div>
 
-      {/* Comment Modal */}
       {isCommentOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
@@ -212,7 +208,8 @@ export default function GalleryPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
 
-  // Initialize Music Player safely
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
   useEffect(() => {
     audioRef.current = new Audio(AppConfig.backgroundMusicUrl);
     audioRef.current.loop = true;
@@ -221,12 +218,11 @@ export default function GalleryPage() {
     };
   }, []);
 
+  // Fetch the name silently from localStorage (Removed auto-popup)
   useEffect(() => {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
       setUserName(savedName);
-    } else {
-      setIsEditNameOpen(true);
     }
   }, []);
 
@@ -244,8 +240,23 @@ export default function GalleryPage() {
     if (!isSilent) setIsLoading(true);
     const { data: postsData } = await supabase.from('posts').select('*, comments(*)').order('created_at', { ascending: false });
     const { data: greetingsData } = await supabase.from('greetings').select('*').order('created_at', { ascending: false });
-    if (postsData) setPosts(postsData);
-    if (greetingsData) setGreetings(greetingsData);
+    
+    if (postsData) {
+      const sortedPosts = postsData.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return 0;
+      });
+      setPosts(sortedPosts);
+    }
+    if (greetingsData) {
+      const sortedGreetings = greetingsData.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return 0;
+      });
+      setGreetings(sortedGreetings);
+    }
     if (!isSilent) setIsLoading(false);
   };
 
@@ -255,7 +266,6 @@ export default function GalleryPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Show ONLY selected_photos (Favorites) in the Slideshow
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
   useEffect(() => {
@@ -326,7 +336,6 @@ export default function GalleryPage() {
     }
   };
 
-  // Voice Recording Functions
   const startVoiceRecording = async () => {
     audioChunksRef.current = [];
     try {
@@ -401,7 +410,6 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-28 relative">
-      {/* Instagram Heart Animation CSS */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes instaHeart {
           0% { transform: scale(0); opacity: 0; }
@@ -415,22 +423,23 @@ export default function GalleryPage() {
         }
       `}} />
 
-      {/* Header */}
+      {/* Header Updated with Info Icon */}
       <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setTempName(userName); setIsEditNameOpen(true); }}>
+        <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => { setTempName(userName); setIsEditNameOpen(true); }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-inner bg-pink-100 text-pink-600 border border-pink-200" title="Change Name">
             {userName ? userName.charAt(0).toUpperCase() : '👤'}
           </div>
         </div>
         
-        <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center">
-          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1">{AppConfig.coupleNames}</h2>
+        <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-3/5">
+          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
         </div>
         
-        <div className="w-9"></div>
+        <button onClick={() => setIsInfoOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition shadow-inner z-10 text-lg border border-blue-100" title="Info">
+          ℹ️
+        </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
           <button onClick={() => setActiveTab("feed")} className={`flex-1 py-2 rounded-full text-sm font-bold transition ${activeTab === "feed" ? "bg-pink-500 text-white shadow" : "text-gray-500 hover:bg-pink-50"}`}>📸 Photos</button>
@@ -505,15 +514,25 @@ export default function GalleryPage() {
               {greetings.map((greeting) => {
                 const isHostMsg = greeting.user_name === AppConfig.hostName;
                 return (
-                  <div key={greeting.id} className={`bg-white p-4 rounded-2xl shadow-sm border ${isHostMsg ? 'border-pink-300 bg-pink-50/30' : 'border-pink-100'} relative`}>
+                  <div key={greeting.id} className={`bg-white p-4 rounded-2xl shadow-sm border ${greeting.is_pinned ? 'border-yellow-300 bg-yellow-50/20' : (isHostMsg ? 'border-pink-300 bg-pink-50/30' : 'border-pink-100')} relative`}>
                     <div className="flex items-center gap-2 mb-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isHostMsg ? 'bg-pink-500 text-white' : 'bg-pink-100 text-pink-600'}`}>
                         {isHostMsg ? '👑' : greeting.user_name.charAt(0).toUpperCase()}
                       </div>
-                      <div><span className={`text-sm block ${isHostMsg ? 'font-extrabold text-pink-600' : 'font-bold text-gray-800'}`}>{greeting.user_name}</span></div>
+                      <div>
+                        <span className={`text-sm block ${isHostMsg ? 'font-extrabold text-pink-600' : 'font-bold text-gray-800'}`}>
+                          {greeting.user_name} {greeting.is_pinned && <span className="text-[10px] bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full ml-1 uppercase">Pinned</span>}
+                        </span>
+                      </div>
                     </div>
                     {greeting.type === "text" && <p className="text-gray-600 text-sm leading-relaxed bg-pink-50/50 p-3 rounded-xl italic">"{greeting.content}"</p>}
                     {greeting.type === "voice" && <audio controls src={greeting.content} className="w-full h-10 outline-none rounded-full bg-purple-50" />}
+                    
+                    {greeting.liked_by_host && (
+                      <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">
+                        Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -524,7 +543,25 @@ export default function GalleryPage() {
 
       <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
 
-      {/* Upload Popup Modal */}
+      {/* Info Popup Modal */}
+      {isInfoOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up relative text-center border-t-4 border-blue-500">
+            <button onClick={() => setIsInfoOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold leading-none">×</button>
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-inner border border-blue-100">
+              ℹ️
+            </div>
+            <p className="text-sm text-gray-700 mb-6 leading-relaxed font-medium px-2">
+              ඔබේ මංගල දිනයටත් මේ වගේ Digital Gallery එකක් හදාගන්න කැමතිද? තාක්ෂණික සහය සහ නව ඇණවුම් සඳහා අපව සම්බන්ධ කරගන්න.
+            </p>
+            <div className="bg-pink-50 text-pink-600 py-3 rounded-2xl font-bold text-sm border border-pink-100 shadow-sm flex flex-col gap-1">
+              <span>Powered by kyro tech</span>
+              <span className="text-lg">📞 0785508792</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isUploadOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
@@ -537,14 +574,12 @@ export default function GalleryPage() {
               <label className="bg-pink-50 text-pink-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-pink-100 transition cursor-pointer border border-pink-100">
                 <span className="text-3xl">📷</span>
                 <span className="text-sm">Camera</span>
-                {/* Fixed for iPhone: HEIC format converted to JPG automatically by iOS */}
                 <input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handlePhotoUpload} className="hidden" />
               </label>
 
               <label className="bg-purple-50 text-purple-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-purple-100 transition cursor-pointer border border-purple-100">
                 <span className="text-3xl">🖼️</span>
                 <span className="text-sm">Gallery</span>
-                {/* Fixed for iPhone */}
                 <input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handlePhotoUpload} className="hidden" />
               </label>
             </div>
@@ -553,7 +588,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Edit Name Modal */}
       {isEditNameOpen && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
