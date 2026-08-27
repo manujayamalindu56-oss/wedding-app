@@ -315,6 +315,13 @@ export default function AdminPage() {
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
 
+  // Host Panel / Settings Panel State
+  const [isHostPanelOpen, setIsHostPanelOpen] = useState(false);
+  
+  // App Control States (Visual only for now, logic can be added later)
+  const [isUploadBlocked, setIsUploadBlocked] = useState(false);
+  const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
+
   useEffect(() => {
     const authStatus = localStorage.getItem("isAdminAuth");
     if (authStatus === "true") {
@@ -361,12 +368,6 @@ export default function AdminPage() {
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
-  useEffect(() => {
-    if (!isProjectorOpen || slideshowUrls.length === 0) return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4000);
-    return () => clearInterval(timer);
-  }, [isProjectorOpen, slideshowUrls.length]);
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === AppConfig.adminPassword) {
@@ -380,6 +381,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
+    setIsHostPanelOpen(false); // Close panel if open
     setIsAuthenticated(false);
     setShowSplash(false);
     localStorage.removeItem("isAdminAuth");
@@ -534,6 +536,20 @@ export default function AdminPage() {
     }
   };
 
+  const downloadGuestbook = () => {
+    if (greetings.length === 0) {
+      alert("බාගත කිරීමට සුබපැතුම් නොමැත!");
+      return;
+    }
+    let textContent = `Guestbook Wishes - ${AppConfig.coupleNames}\n\n`;
+    greetings.filter(g => g.type === 'text').forEach(g => {
+      textContent += `Name: ${g.user_name}\nWish: "${g.content}"\n---\n`;
+    });
+    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+    saveAs(blob, "Guestbook_Wishes.txt");
+    alert("සුබපැතුම් ලැයිස්තුව සාර්ථකව බාගත කරන ලදී!");
+  };
+
   if (isAuthChecking) return <div className="min-h-screen bg-pink-50"></div>;
 
   if (!isAuthenticated) {
@@ -558,21 +574,121 @@ export default function AdminPage() {
     return <AdminSplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
+  // Calculate quick stats for Host Panel
+  const totalPhotos = posts.reduce((sum, post) => sum + post.urls.length, 0);
+  const totalWishes = greetings.length;
+
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-24 relative">
-      {/* Header Updated with Smaller Name and Emoji Only Tag */}
+      {/* Header */}
       <div className="bg-white px-3 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
-        <div className="flex items-center bg-pink-50 px-2 py-1.5 rounded-full border border-pink-100 shadow-inner z-10" title="Host View">
+        {/* Host Avatar (Click to open Panel) */}
+        <button onClick={() => setIsHostPanelOpen(true)} className="flex items-center bg-pink-50 px-2 py-1.5 rounded-full border border-pink-100 shadow-inner z-10 transition-transform hover:scale-105" title="Host Panel">
           <span className="text-lg leading-none">👩‍❤️‍👨</span>
-        </div>
+        </button>
 
         <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-[60%]">
           <h2 className="text-gray-800 font-extrabold text-lg leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
         </div>
 
-        <button onClick={handleLogout} className="text-[10px] font-bold text-gray-400 hover:text-red-500 transition border px-2 py-1 rounded-lg z-10 bg-white">Logout</button>
+        {/* Keeping empty div for flex spacing, Logout moved to panel */}
+        <div className="w-9 z-10"></div> 
       </div>
 
+      {/* --- HOST PANEL (Off-canvas Drawer) --- */}
+      {isHostPanelOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsHostPanelOpen(false)}></div>
+          <div className="fixed top-0 left-0 bottom-0 w-80 bg-white z-50 shadow-2xl flex flex-col animate-[slideInLeft_0.3s_ease-out] border-r border-pink-200">
+            
+            {/* Panel Header */}
+            <div className="bg-pink-500 text-white p-6 rounded-br-[50px] shadow-md relative">
+              <button onClick={() => setIsHostPanelOpen(false)} className="absolute top-4 right-4 text-white/80 hover:text-white text-3xl leading-none">×</button>
+              <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center text-3xl mb-3 border border-white/40 shadow-inner">👑</div>
+              <h2 className="text-xl font-extrabold tracking-wide">Host Settings</h2>
+              <p className="text-pink-100 text-xs mt-1">Control your gallery & view stats</p>
+            </div>
+
+            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-6" style={{ scrollbarWidth: 'none' }}>
+              
+              {/* Quick Stats */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Live Dashboard</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                    <span className="text-2xl mb-1">📸</span>
+                    <span className="text-2xl font-extrabold text-blue-600">{totalPhotos}</span>
+                    <span className="text-[10px] text-blue-500 font-bold uppercase tracking-wide">Photos</span>
+                  </div>
+                  <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                    <span className="text-2xl mb-1">💌</span>
+                    <span className="text-2xl font-extrabold text-purple-600">{totalWishes}</span>
+                    <span className="text-[10px] text-purple-500 font-bold uppercase tracking-wide">Wishes</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* App Controls / Locks */}
+              <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">App Controls</h3>
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-800">Block New Photos</span>
+                    <span className="text-[10px] text-gray-500">Stop guests from uploading</span>
+                  </div>
+                  <button onClick={() => setIsUploadBlocked(!isUploadBlocked)} className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isUploadBlocked ? 'bg-red-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isUploadBlocked ? 'translate-x-6' : ''}`}></div>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-800">Block Guestbook</span>
+                    <span className="text-[10px] text-gray-500">Stop new wishes</span>
+                  </div>
+                  <button onClick={() => setIsGuestbookBlocked(!isGuestbookBlocked)} className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isGuestbookBlocked ? 'bg-red-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isGuestbookBlocked ? 'translate-x-6' : ''}`}></div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Share Options */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Share Gallery</h3>
+                <button onClick={() => {
+                  navigator.clipboard.writeText(window.location.origin);
+                  alert("Link copied to clipboard!");
+                }} className="w-full bg-pink-50 border border-pink-200 text-pink-600 font-bold py-3.5 rounded-xl shadow-sm hover:bg-pink-100 transition text-sm flex items-center justify-center gap-2">
+                  🔗 Copy App Link
+                </button>
+              </div>
+
+              {/* Downloads */}
+              <div>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Exports</h3>
+                <button onClick={downloadGuestbook} className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3.5 rounded-xl shadow-sm hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2">
+                  📜 Download Guestbook (Txt)
+                </button>
+              </div>
+
+            </div>
+
+            {/* Logout Button */}
+            <div className="p-5 border-t border-gray-100 bg-white">
+              <button onClick={handleLogout} className="w-full bg-red-50 border border-red-200 text-red-500 font-bold py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition text-sm flex items-center justify-center gap-2">
+                🚪 Secure Logout
+              </button>
+            </div>
+          </div>
+          
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+          `}} />
+        </>
+      )}
+
+      {/* Main Content (Tabs) */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
           <button onClick={() => setActiveTab("album")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${activeTab === "album" ? "bg-pink-500 text-white shadow-md" : "text-gray-500 hover:bg-pink-50"}`}>🖼️ Album</button>
@@ -727,18 +843,6 @@ export default function AdminPage() {
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Del</span>
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Projector / Slideshow with Music */}
-      {isProjectorOpen && (
-        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-xl">
-          <button onClick={() => setIsProjectorOpen(false)} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl transition z-50 backdrop-blur-md">×</button>
-          {slideshowUrls.length === 0 ? (
-            <p className="text-white text-xl">Slideshow සඳහා ඡායාරූප තෝරා නොමැත.</p>
-          ) : (
-            <>{slideshowUrls.map((url, idx) => <img key={idx} src={url} alt="Projector Slide" className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`} />)}</>
-          )}
         </div>
       )}
     </div>

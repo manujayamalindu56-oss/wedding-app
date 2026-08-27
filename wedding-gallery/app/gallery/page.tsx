@@ -555,7 +555,7 @@ export default function GalleryPage() {
               ඔබේ මංගල දිනයටත් මේ වගේ Digital Gallery එකක් හදාගන්න කැමතිද? තාක්ෂණික සහය සහ නව ඇණවුම් සඳහා අපව සම්බන්ධ කරගන්න.
             </p>
             <div className="bg-pink-50 text-pink-600 py-3 rounded-2xl font-bold text-sm border border-pink-100 shadow-sm flex flex-col gap-1">
-              <span>Powered by kyro tech</span>
+              <span>Powered by MX Tech</span>
               <span className="text-lg">📞 0785508792</span>
             </div>
           </div>
