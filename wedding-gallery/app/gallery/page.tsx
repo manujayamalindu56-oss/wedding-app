@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 
-// --- Image Compressor Helper ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -41,9 +40,6 @@ async function compressImage(file: File): Promise<File> {
   });
 }
 
-// -------------------------------------------------------------
-// Guest Feed Post Component
-// -------------------------------------------------------------
 const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
@@ -173,9 +169,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   );
 };
 
-// -------------------------------------------------------------
-// Main Gallery Page
-// -------------------------------------------------------------
 export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState("feed");
   const [viewType, setViewType] = useState("feed"); 
@@ -194,6 +187,7 @@ export default function GalleryPage() {
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
+  const [isSlideshowFinished, setIsSlideshowFinished] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
@@ -209,14 +203,11 @@ export default function GalleryPage() {
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
-  // App Control States (From Database)
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
-  // Initialize Romantic Background Music
   useEffect(() => {
-    // Beautiful Soft Romantic Piano & Strings Music
-    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=soft-romantic-piano-113264.mp3");
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -227,8 +218,6 @@ export default function GalleryPage() {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
       setUserName(savedName);
-    } else {
-      setIsEditNameOpen(true);
     }
   }, []);
 
@@ -282,34 +271,18 @@ export default function GalleryPage() {
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
   useEffect(() => {
-    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying) return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4500); // Cinematic transition every 4.5s
+    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying || isSlideshowFinished) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => {
+        if (prev + 1 >= slideshowUrls.length) {
+          setIsSlideshowFinished(true);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 4500);
     return () => clearInterval(timer);
-  }, [isProjectorOpen, isSlideshowPlaying, slideshowUrls.length]);
-
-  const toggleMusic = () => {
-    if (!audioRef.current) return;
-    if (isPlayingMusic) {
-      audioRef.current.pause();
-      setIsPlayingMusic(false);
-    } else {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => setIsPlayingMusic(true))
-          .catch(() => alert("කරුණාකර බ්‍රවුසරයේ අවසර ලබාදීමට නැවත වරක් Music බොත්තම ඔබන්න."));
-      }
-    }
-  };
-
-  const handleCloseProjector = () => {
-    setIsProjectorOpen(false);
-    setIsSlideshowPlaying(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsPlayingMusic(false);
-    }
-  };
+  }, [isProjectorOpen, isSlideshowPlaying, isSlideshowFinished, slideshowUrls.length]);
 
   const handlePhotoUpload = async (e: any) => {
     const files = Array.from(e.target.files) as File[];
@@ -425,25 +398,19 @@ export default function GalleryPage() {
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-28 relative">
       <style dangerouslySetInnerHTML={{__html: `
-        @keyframes instaHeart {
-          0% { transform: scale(0); opacity: 0; }
-          15% { transform: scale(1.2); opacity: 1; }
-          30% { transform: scale(1); opacity: 1; }
-          70% { transform: scale(1); opacity: 1; }
-          100% { transform: scale(0); opacity: 0; }
-        }
+        @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
         .animate-insta-heart { animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
-        /* Apple Cinematic Memory Animations */
-        @keyframes kenBurnsEffect {
-          0% { transform: scale(1); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: scale(1.1) rotate(0.5deg); opacity: 0; }
-        }
-        .animate-ken-burns {
-          animation: kenBurnsEffect 4.5s ease-in-out forwards;
-        }
+        /* 4 Different Cinematic Animations */
+        @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } }
+        @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } }
+        @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } }
+        @keyframes kenBurns4 { 0% { transform: scale(1.15) translate(0, -2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 2%); opacity: 0; } }
+        
+        .animate-kb-0 { animation: kenBurns1 4.5s ease-in-out forwards; }
+        .animate-kb-1 { animation: kenBurns2 4.5s ease-in-out forwards; }
+        .animate-kb-2 { animation: kenBurns3 4.5s ease-in-out forwards; }
+        .animate-kb-3 { animation: kenBurns4 4.5s ease-in-out forwards; }
       `}} />
 
       <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
@@ -478,7 +445,12 @@ export default function GalleryPage() {
               <h3 className="font-bold text-gray-700 text-sm">Gallery</h3>
               <div className="flex gap-2 items-center">
                 {slideshowUrls.length > 0 && viewType === 'grid' && (
-                  <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform transform hover:scale-105 animate-pulse">
+                  <button onClick={() => { 
+                      setIsProjectorOpen(true); 
+                      setCurrentSlide(0); 
+                      setIsSlideshowFinished(false);
+                      setIsSlideshowPlaying(false);
+                    }} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1 transition-transform transform hover:scale-105 animate-pulse">
                     🎬 Favorites ({slideshowUrls.length})
                   </button>
                 )}
@@ -659,16 +631,21 @@ export default function GalleryPage() {
       {/* Cinematic Memory / Slideshow Modal */}
       {isProjectorOpen && (
         <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-2xl">
-          <button onClick={handleCloseProjector} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50 transition">×</button>
+          <button onClick={() => {
+              setIsProjectorOpen(false);
+              setIsSlideshowPlaying(false);
+              setIsSlideshowFinished(false);
+              if (audioRef.current) { audioRef.current.pause(); setIsPlayingMusic(false); }
+            }} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50 transition">×</button>
           
-          {!isSlideshowPlaying ? (
+          {!isSlideshowPlaying && !isSlideshowFinished ? (
             <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
               <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
               <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
               <button onClick={() => {
                   setIsSlideshowPlaying(true);
                   if (audioRef.current) {
-                    audioRef.current.play().catch(() => alert("කරුණාකර Music එක Play කරන්න අවසර දෙන්න."));
+                    audioRef.current.play().catch(() => alert("කරුණාකර Music Play වීමට අවසර දෙන්න."));
                     setIsPlayingMusic(true);
                   }
                 }} 
@@ -676,9 +653,32 @@ export default function GalleryPage() {
                 ▶ Tap to Start
               </button>
             </div>
+          ) : isSlideshowFinished ? (
+            <div className="text-center flex flex-col items-center justify-center animate-fade-in-up z-50 p-6">
+              <h2 className="text-4xl md:text-5xl font-serif italic text-white drop-shadow-lg mb-4">Thank You!</h2>
+              <p className="text-white/80 text-lg md:text-xl max-w-md leading-relaxed mb-8">
+                Thank you for being a part of our special day and making these memories unforgettable.
+              </p>
+              <button onClick={() => {
+                  setCurrentSlide(0);
+                  setIsSlideshowFinished(false);
+                  setIsSlideshowPlaying(true);
+                  if (audioRef.current && !isPlayingMusic) {
+                    audioRef.current.play();
+                    setIsPlayingMusic(true);
+                  }
+                }} 
+                className="bg-white/20 hover:bg-white/30 text-white px-8 py-3 rounded-full font-bold shadow-lg flex items-center gap-2 transition-transform transform hover:scale-105 border border-white/30">
+                🔄 Play Again
+              </button>
+            </div>
           ) : (
             <>
-              <button onClick={toggleMusic} className="absolute top-6 left-6 bg-white/10 text-white/70 px-4 py-2 rounded-full font-bold text-xs z-50 hover:bg-white/20 transition flex items-center gap-2">
+              <button onClick={() => {
+                  if (!audioRef.current) return;
+                  if (isPlayingMusic) { audioRef.current.pause(); setIsPlayingMusic(false); } 
+                  else { audioRef.current.play(); setIsPlayingMusic(true); }
+                }} className="absolute top-6 left-6 bg-white/10 text-white/70 px-4 py-2 rounded-full font-bold text-xs z-50 hover:bg-white/20 transition flex items-center gap-2">
                 {isPlayingMusic ? "🎵 Pause Music" : "🔇 Play Music"}
               </button>
               
@@ -688,7 +688,7 @@ export default function GalleryPage() {
                     key={currentSlide} 
                     src={slideshowUrls[currentSlide]} 
                     alt="Memory" 
-                    className="w-full h-full object-contain animate-ken-burns opacity-0" 
+                    className={`w-full h-full object-contain opacity-0 animate-kb-${currentSlide % 4}`} 
                   />
                 </div>
               )}

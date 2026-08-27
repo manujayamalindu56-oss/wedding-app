@@ -5,7 +5,6 @@ import { AppConfig } from "@/lib/config";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
-// --- Image Compressor Helper ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -34,9 +33,6 @@ async function compressImage(file: File): Promise<File> {
   });
 }
 
-// -------------------------------------------------------------
-// Admin Splash Screen Component
-// -------------------------------------------------------------
 const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [walk, setWalk] = useState(false);
   const [showNames, setShowNames] = useState(false);
@@ -84,9 +80,6 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   );
 };
 
-// -------------------------------------------------------------
-// Admin Greeting Component
-// -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   const [showHeart, setShowHeart] = useState(false);
   const isHostMsg = greeting.user_name === AppConfig.hostName;
@@ -128,11 +121,6 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
-        .animate-insta-heart { animation: instaHeart 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-      `}} />
-
       {showHeart && (
         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <div className="text-rose-500 text-[6rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div>
@@ -148,9 +136,6 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   );
 }
 
-// -------------------------------------------------------------
-// Admin Feed Post Component
-// -------------------------------------------------------------
 function AdminFeedPost({ 
   post, onDeletePhoto, onDeleteFullPost, onDeleteComment, onAddComment, onUpdate, onPinPost
 }: { 
@@ -305,21 +290,18 @@ export default function AdminPage() {
   const [newGreetingComment, setNewGreetingComment] = useState("");
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
+  const [isSlideshowFinished, setIsSlideshowFinished] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Upload States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState("");
 
-  // Grid Fullscreen & Download Menus
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
 
-  // Host Panel / Settings Panel State
   const [isHostPanelOpen, setIsHostPanelOpen] = useState(false);
   
-  // Database Connected App Control States
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
@@ -327,8 +309,8 @@ export default function AdminPage() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   useEffect(() => {
-    // Beautiful Soft Romantic Piano & Strings Music
-    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=soft-romantic-piano-113264.mp3");
+    // Upbeat, warm & bright track. (Replace this URL if you have the original song uploaded in Supabase)
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -389,11 +371,20 @@ export default function AdminPage() {
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
+  // Cinematic Slideshow Timer with Stop Logic
   useEffect(() => {
-    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying) return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4500); // 4.5s matches Cinematic Animation
+    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying || isSlideshowFinished) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => {
+        if (prev + 1 >= slideshowUrls.length) {
+          setIsSlideshowFinished(true);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 4500); 
     return () => clearInterval(timer);
-  }, [isProjectorOpen, isSlideshowPlaying, slideshowUrls.length]);
+  }, [isProjectorOpen, isSlideshowPlaying, isSlideshowFinished, slideshowUrls.length]);
 
   const toggleMusic = () => {
     if (!audioRef.current) return;
@@ -634,16 +625,19 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-24 relative">
       <style dangerouslySetInnerHTML={{__html: `
-        /* Apple Cinematic Memory Animations */
-        @keyframes kenBurnsEffect {
-          0% { transform: scale(1); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: scale(1.1) rotate(0.5deg); opacity: 0; }
-        }
-        .animate-ken-burns {
-          animation: kenBurnsEffect 4.5s ease-in-out forwards;
-        }
+        @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
+        .animate-insta-heart { animation: instaHeart 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        /* 4 Different Cinematic Animations */
+        @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } }
+        @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } }
+        @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } }
+        @keyframes kenBurns4 { 0% { transform: scale(1.15) translate(0, -2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 2%); opacity: 0; } }
+        
+        .animate-kb-0 { animation: kenBurns1 4.5s ease-in-out forwards; }
+        .animate-kb-1 { animation: kenBurns2 4.5s ease-in-out forwards; }
+        .animate-kb-2 { animation: kenBurns3 4.5s ease-in-out forwards; }
+        .animate-kb-3 { animation: kenBurns4 4.5s ease-in-out forwards; }
       `}} />
 
       {/* Header */}
@@ -659,7 +653,7 @@ export default function AdminPage() {
         <div className="w-9 z-10"></div> 
       </div>
 
-      {/* --- HOST PANEL (Off-canvas Drawer) --- */}
+      {/* HOST PANEL */}
       {isHostPanelOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsHostPanelOpen(false)}></div>
@@ -746,7 +740,6 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* Main Content (Tabs) */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
           <button onClick={() => setActiveTab("album")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${activeTab === "album" ? "bg-pink-500 text-white shadow-md" : "text-gray-500 hover:bg-pink-50"}`}>🖼️ Album</button>
@@ -786,7 +779,12 @@ export default function AdminPage() {
 
             {viewType === "grid" && slideshowUrls.length > 0 && (
               <div className="mb-3 px-2 flex justify-end">
-                <button onClick={() => { setIsProjectorOpen(true); setCurrentSlide(0); }} className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-transform transform hover:scale-105 animate-pulse">
+                <button onClick={() => { 
+                    setIsProjectorOpen(true); 
+                    setCurrentSlide(0); 
+                    setIsSlideshowFinished(false);
+                    setIsSlideshowPlaying(false);
+                  }} className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md flex items-center gap-2 transition-transform transform hover:scale-105 animate-pulse">
                   🎬 Play Favorites ({slideshowUrls.length})
                 </button>
               </div>
@@ -912,10 +910,11 @@ export default function AdminPage() {
           <button onClick={() => {
               setIsProjectorOpen(false);
               setIsSlideshowPlaying(false);
+              setIsSlideshowFinished(false);
               if (audioRef.current) { audioRef.current.pause(); setIsPlayingMusic(false); }
             }} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50 transition">×</button>
           
-          {!isSlideshowPlaying ? (
+          {!isSlideshowPlaying && !isSlideshowFinished ? (
             <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
               <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
               <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
@@ -928,6 +927,25 @@ export default function AdminPage() {
                 }} 
                 className="mt-4 bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center gap-3 transition-transform transform hover:scale-105">
                 ▶ Tap to Start
+              </button>
+            </div>
+          ) : isSlideshowFinished ? (
+            <div className="text-center flex flex-col items-center justify-center animate-fade-in-up z-50 p-6">
+              <h2 className="text-4xl md:text-5xl font-serif italic text-white drop-shadow-lg mb-4">Thank You!</h2>
+              <p className="text-white/80 text-lg md:text-xl max-w-md leading-relaxed mb-8">
+                Thank you for being a part of our special day and making these memories unforgettable.
+              </p>
+              <button onClick={() => {
+                  setCurrentSlide(0);
+                  setIsSlideshowFinished(false);
+                  setIsSlideshowPlaying(true);
+                  if (audioRef.current && !isPlayingMusic) {
+                    audioRef.current.play();
+                    setIsPlayingMusic(true);
+                  }
+                }} 
+                className="bg-white/20 hover:bg-white/30 text-white px-8 py-3 rounded-full font-bold shadow-lg flex items-center gap-2 transition-transform transform hover:scale-105 border border-white/30">
+                🔄 Play Again
               </button>
             </div>
           ) : (
@@ -946,7 +964,7 @@ export default function AdminPage() {
                     key={currentSlide} 
                     src={slideshowUrls[currentSlide]} 
                     alt="Memory" 
-                    className="w-full h-full object-contain animate-ken-burns opacity-0" 
+                    className={`w-full h-full object-contain opacity-0 animate-kb-${currentSlide % 4}`} 
                   />
                 </div>
               )}
