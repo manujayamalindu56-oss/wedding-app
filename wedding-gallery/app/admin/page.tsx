@@ -4,11 +4,36 @@ import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import imageCompression from 'browser-image-compression'; // <-- අලුත් Compressor එක
+import imageCompression from 'browser-image-compression';
 
-// -------------------------------------------------------------
-// Admin Splash Screen Component
-// -------------------------------------------------------------
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+        else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
+          else resolve(file);
+        }, "image/jpeg", 0.75);
+      };
+    };
+  });
+}
+
 const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [walk, setWalk] = useState(false);
   const [showNames, setShowNames] = useState(false);
@@ -56,9 +81,6 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   );
 };
 
-// -------------------------------------------------------------
-// Admin Greeting Component
-// -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   const [showHeart, setShowHeart] = useState(false);
   const isHostMsg = greeting.user_name === AppConfig.hostName;
@@ -115,9 +137,6 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   );
 }
 
-// -------------------------------------------------------------
-// Admin Feed Post Component
-// -------------------------------------------------------------
 function AdminFeedPost({ 
   post, onDeletePhoto, onDeleteFullPost, onDeleteComment, onAddComment, onUpdate, onPinPost
 }: { 
@@ -254,9 +273,6 @@ function AdminFeedPost({
   );
 }
 
-// -------------------------------------------------------------
-// Main Admin Page
-// -------------------------------------------------------------
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
@@ -269,17 +285,25 @@ export default function AdminPage() {
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Custom Notifications & Modals
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{message: string, onConfirm: () => void} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   const [newGreetingComment, setNewGreetingComment] = useState("");
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
   const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
   const [isSlideshowFinished, setIsSlideshowFinished] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-// Upload States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState("");
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
+  const [uploadProgressText, setUploadProgressText] = useState("");
 
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -293,7 +317,8 @@ export default function AdminPage() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   useEffect(() => {
-    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
+    // Custom song link
+    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -368,21 +393,6 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, [isProjectorOpen, isSlideshowPlaying, isSlideshowFinished, slideshowUrls.length]);
 
-  const toggleMusic = () => {
-    if (!audioRef.current) return;
-    if (isPlayingMusic) {
-      audioRef.current.pause();
-      setIsPlayingMusic(false);
-    } else {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => setIsPlayingMusic(true))
-          .catch(() => alert("කරුණාකර බ්‍රවුසරයේ අවසර ලබාදීමට නැවත වරක් Music බොත්තම ඔබන්න."));
-      }
-    }
-  };
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === AppConfig.adminPassword) {
@@ -390,7 +400,7 @@ export default function AdminPage() {
       setShowSplash(true); 
       localStorage.setItem("isAdminAuth", "true"); 
     } else {
-      alert("මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.");
+      showToast("මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.", "error");
       setPasswordInput("");
     }
   };
@@ -445,12 +455,14 @@ export default function AdminPage() {
       let completedSteps = 0;
 
       for (let i = 0; i < files.length; i++) {
+        setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
         const compressionOptions = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
         const compressedFile = await imageCompression(files[i], compressionOptions);
         
         completedSteps++;
         setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
 
+        setUploadProgressText(`Uploading Image ${i+1}/${files.length}...`);
         const ext = compressedFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
 
@@ -467,38 +479,73 @@ export default function AdminPage() {
       await supabase.from('posts').insert([{ user_name: AppConfig.hostName, urls: uploadedUrls }]);
       setUploading(false);
       fetchData(true);
-      alert("Photos uploaded successfully!");
+      showToast("Photos uploaded successfully! 📸", "success");
     } catch (error) {
-      alert("Upload failed. Please try again.");
+      showToast("Upload failed. Please try again.", "error");
       setUploading(false);
     }
   };
 
-  const handleDeletePhoto = async (postId: string, photoIndex: number, currentUrls: string[]) => {
-    if (window.confirm("මෙම නිශ්චිත ඡායාරූපය පමණක් මකා දැමීමට අවශ්‍යද?")) {
-      const updatedUrls = currentUrls.filter((_, idx) => idx !== photoIndex);
-      if (updatedUrls.length === 0) {
-        await supabase.from('posts').delete().eq('id', postId);
-      } else {
-        await supabase.from('posts').update({ urls: updatedUrls }).eq('id', postId);
+  const handleDeletePhoto = (postId: string, photoIndex: number, currentUrls: string[]) => {
+    setConfirmDialog({
+      message: "මෙම නිශ්චිත ඡායාරූපය පමණක් මකා දැමීමට අවශ්‍යද?",
+      onConfirm: async () => {
+        const updatedUrls = currentUrls.filter((_, idx) => idx !== photoIndex);
+        if (updatedUrls.length === 0) {
+          await supabase.from('posts').delete().eq('id', postId);
+        } else {
+          await supabase.from('posts').update({ urls: updatedUrls }).eq('id', postId);
+        }
+        fetchData(true);
+        showToast("ඡායාරූපය සාර්ථකව මකා දමන ලදී.", "success");
+        setConfirmDialog(null);
       }
-      fetchData(true);
-    }
+    });
   };
 
-  const handleDeleteFullPost = async (postId: string) => {
-    if (window.confirm("මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?")) {
-      await supabase.from('posts').delete().eq('id', postId);
-      fetchData(true);
-    }
+  const handleDeleteFullPost = (postId: string) => {
+    setConfirmDialog({
+      message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?",
+      onConfirm: async () => {
+        await supabase.from('posts').delete().eq('id', postId);
+        fetchData(true);
+        showToast("Post එක මකා දමන ලදී.", "success");
+        setConfirmDialog(null);
+      }
+    });
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    setConfirmDialog({
+      message: "මෙම කමෙන්ට් එක මකා දැමීමට අවශ්‍යද?",
+      onConfirm: async () => {
+        await supabase.from('comments').delete().eq('id', commentId);
+        fetchData(true);
+        showToast("කමෙන්ට් එක මකා දමන ලදී.", "success");
+        setConfirmDialog(null);
+      }
+    });
+  };
+
+  const handleDeleteGreeting = (id: string) => {
+    setConfirmDialog({
+      message: "මෙම සුබපැතුම මකා දැමීමට අවශ්‍යද?",
+      onConfirm: async () => {
+        await supabase.from('greetings').delete().eq('id', id);
+        fetchData(true);
+        showToast("සුබපැතුම මකා දමන ලදී.", "success");
+        setConfirmDialog(null);
+      }
+    });
   };
 
   const handlePinPost = async (postId: string, currentPinStatus: boolean) => {
     try {
       await supabase.from('posts').update({ is_pinned: !currentPinStatus }).eq('id', postId);
       fetchData(true);
+      showToast(currentPinStatus ? "Post unpinned." : "Post pinned! 📌", "success");
     } catch (error) {
-      alert("Pin කිරීම අසාර්ථකයි.");
+      showToast("Pin කිරීම අසාර්ථකයි.", "error");
     }
   };
 
@@ -506,28 +553,16 @@ export default function AdminPage() {
     try {
       await supabase.from('greetings').update({ is_pinned: !currentPinStatus }).eq('id', id);
       fetchData(true);
+      showToast(currentPinStatus ? "Greeting unpinned." : "Greeting pinned! 📌", "success");
     } catch (error) {
-      alert("Pin කිරීම අසාර්ථකයි.");
-    }
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    if (window.confirm("මෙම කමෙන්ට් එක මකා දැමීමට අවශ්‍යද?")) {
-      await supabase.from('comments').delete().eq('id', commentId);
-      fetchData(true);
+      showToast("Pin කිරීම අසාර්ථකයි.", "error");
     }
   };
 
   const handleAddComment = async (postId: string, text: string) => {
     await supabase.from('comments').insert([{ post_id: postId, user_name: AppConfig.hostName, text: text, is_admin: true }]);
     fetchData(true);
-  };
-
-  const handleDeleteGreeting = async (id: string) => {
-    if (window.confirm("මෙම සුබපැතුම මකා දැමීමට අවශ්‍යද?")) {
-      await supabase.from('greetings').delete().eq('id', id);
-      fetchData(true);
-    }
+    showToast("Comment added.", "success");
   };
 
   const handleAddHostGreeting = async (e: React.FormEvent) => {
@@ -536,6 +571,7 @@ export default function AdminPage() {
     await supabase.from('greetings').insert([{ user_name: AppConfig.hostName, type: "text", content: newGreetingComment }]);
     setNewGreetingComment("");
     fetchData(true);
+    showToast("Posted successfully.", "success");
   };
 
   const downloadMultipleImages = async (type: 'all' | 'fav') => {
@@ -545,13 +581,12 @@ export default function AdminPage() {
       : posts.flatMap(p => p.selected_photos || []);
 
     if (urlsToDownload.length === 0) {
-      alert("බාගත කිරීමට ඡායාරූප නොමැත!");
+      showToast("බාගත කිරීමට ඡායාරූප නොමැත!", "error");
       return;
     }
 
     setUploading(true);
     setUploadProgressText("Zipping Photos...");
-    // Hack: re-use progress circle for zip progress, just set to 50 for visual feedback
     setUploadProgressPercent(50); 
 
     try {
@@ -566,18 +601,18 @@ export default function AdminPage() {
       const content = await zip.generateAsync({ type: "blob" });
       saveAs(content, `Wedding_Photos_${type === 'all' ? 'All' : 'Favorites'}.zip`);
       setUploading(false);
-      alert("සාර්ථකව බාගත කරන ලදී!");
+      showToast("සාර්ථකව බාගත කරන ලදී!", "success");
 
     } catch (err) {
       console.error("Download error:", err);
       setUploading(false);
-      alert("බාගත කිරීම අසාර්ථකයි.");
+      showToast("බාගත කිරීම අසාර්ථකයි.", "error");
     }
   };
 
   const downloadGuestbook = () => {
     if (greetings.length === 0) {
-      alert("බාගත කිරීමට සුබපැතුම් නොමැත!");
+      showToast("බාගත කිරීමට සුබපැතුම් නොමැත!", "error");
       return;
     }
     let textContent = `Guestbook Wishes - ${AppConfig.coupleNames}\n\n`;
@@ -586,14 +621,14 @@ export default function AdminPage() {
     });
     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
     saveAs(blob, "Guestbook_Wishes.txt");
-    alert("සුබපැතුම් ලැයිස්තුව සාර්ථකව බාගත කරන ලදී!");
+    showToast("සුබපැතුම් ලැයිස්තුව සාර්ථකව බාගත කරන ලදී!", "success");
   };
 
   if (isAuthChecking) return <div className="min-h-screen bg-pink-50"></div>;
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-pink-50 flex items-center justify-center p-6 font-sans">
+      <div className="min-h-screen bg-pink-50 flex items-center justify-center p-6 font-sans relative">
         <div className="bg-white p-8 rounded-3xl shadow-xl border border-pink-100 w-full max-w-sm animate-fade-in-up">
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">👑</div>
@@ -605,6 +640,17 @@ export default function AdminPage() {
             <button type="submit" className="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-pink-600 transition">ඇතුල් වන්න</button>
           </form>
         </div>
+        
+        {/* Custom Toast inside Login Screen too */}
+        {toast && (
+          <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${
+            toast.type === 'success' ? 'bg-green-500 text-white' : 
+            toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'
+          }`}>
+            <span className="text-xl leading-none">{toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}</span>
+            <span className="tracking-wide">{toast.message}</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -706,7 +752,7 @@ export default function AdminPage() {
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Share Gallery</h3>
                 <button onClick={() => {
                   navigator.clipboard.writeText(window.location.origin);
-                  alert("Link copied to clipboard!");
+                  showToast("Link copied to clipboard! 🔗", "success");
                 }} className="w-full bg-pink-50 border border-pink-200 text-pink-600 font-bold py-3.5 rounded-xl shadow-sm hover:bg-pink-100 transition text-sm flex items-center justify-center gap-2">
                   🔗 Copy App Link
                 </button>
@@ -851,15 +897,12 @@ export default function AdminPage() {
         </div>
       )}
 
-   {/* Modern Progress Bar for Uploading */}
       {uploading && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
             <div className="relative w-24 h-24 flex items-center justify-center">
-              {/* Circular Progress Background */}
               <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#fdf2f8" strokeWidth="8" />
-                {/* Circular Progress Fill */}
                 <circle 
                   cx="50" cy="50" r="45" fill="none" stroke="#ec4899" strokeWidth="8" 
                   strokeLinecap="round"
@@ -873,7 +916,7 @@ export default function AdminPage() {
             
             <div className="text-center">
               <h3 className="font-bold text-gray-800 text-lg mb-1">
-                {uploadProgressPercent < 50 ? "Compressing Photos..." : "Uploading to Gallery..."}
+                {uploadProgressText}
               </h3>
               <p className="text-xs text-gray-500">Please don't close the app.</p>
             </div>
@@ -905,7 +948,7 @@ export default function AdminPage() {
                 a.href = window.URL.createObjectURL(blob);
                 a.download = `Wedding_Photo_${Date.now()}.jpg`;
                 a.click();
-              } catch (e) { alert("බාගත කිරීම අසාර්ථකයි."); }
+              } catch (e) { showToast("බාගත කිරීම අසාර්ථකයි.", "error"); }
             }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1">
               <span>⬇️</span>
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save</span>
@@ -939,7 +982,7 @@ export default function AdminPage() {
               <button onClick={() => {
                   setIsSlideshowPlaying(true);
                   if (audioRef.current) {
-                    audioRef.current.play().catch(() => alert("කරුණාකර Music Play වීමට අවසර දෙන්න."));
+                    audioRef.current.play().catch(() => showToast("කරුණාකර Music Play වීමට අවසර දෙන්න.", "error"));
                     setIsPlayingMusic(true);
                   }
                 }} 
@@ -988,6 +1031,30 @@ export default function AdminPage() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* --- Custom Premium Notifications & Modals --- */}
+      {toast && (
+        <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 
+          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'
+        }`}>
+          <span className="text-xl leading-none">{toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}</span>
+          <span className="tracking-wide">{toast.message}</span>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4 border-t-4 border-red-500">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-2 shadow-inner">⚠️</div>
+            <h3 className="font-bold text-gray-800 text-center text-lg">{confirmDialog.message}</h3>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl shadow-sm hover:bg-gray-200 transition">Cancel</button>
+              <button onClick={confirmDialog.onConfirm} className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-red-600 transition">Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

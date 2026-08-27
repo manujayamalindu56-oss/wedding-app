@@ -2,11 +2,45 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
-import imageCompression from 'browser-image-compression'; // <-- අලුත් Compressor එක
+import imageCompression from 'browser-image-compression';
 
-// -------------------------------------------------------------
-// Guest Feed Post Component
-// -------------------------------------------------------------
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+        } else {
+          if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
+          } else {
+            resolve(file);
+          }
+        }, "image/jpeg", 0.75);
+      };
+    };
+  });
+}
+
 const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
@@ -136,15 +170,19 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   );
 };
 
-// -------------------------------------------------------------
-// Main Gallery Page
-// -------------------------------------------------------------
 export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState("feed");
   const [viewType, setViewType] = useState("feed"); 
   const [posts, setPosts] = useState<any[]>([]);
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Custom Notifications
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
   
   const [userName, setUserName] = useState("");
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
@@ -152,9 +190,9 @@ export default function GalleryPage() {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   
-  // --- New Upload Progress States ---
   const [uploading, setUploading] = useState(false);
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
+  const [uploadProgressText, setUploadProgressText] = useState("");
 
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
@@ -179,7 +217,8 @@ export default function GalleryPage() {
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
   useEffect(() => {
-    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
+    // Custom song link
+    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -199,7 +238,7 @@ export default function GalleryPage() {
       localStorage.setItem("wedding_guest_name", tempName);
       setIsEditNameOpen(false);
     } else {
-      alert("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.");
+      showToast("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.", "error");
     }
   };
 
@@ -271,13 +310,13 @@ export default function GalleryPage() {
 
     try {
       const uploadedUrls = [];
-      const totalSteps = files.length * 2; // Compression and Uploading each take a step
+      const totalSteps = files.length * 2; 
       let completedSteps = 0;
 
       for (let i = 0; i < files.length; i++) {
-        // --- 1. Compress Image ---
+        setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
         const compressionOptions = {
-          maxSizeMB: 1, // Compress to max 1MB
+          maxSizeMB: 1, 
           maxWidthOrHeight: 1920,
           useWebWorker: true,
         };
@@ -286,7 +325,7 @@ export default function GalleryPage() {
         completedSteps++;
         setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
 
-        // --- 2. Upload Image ---
+        setUploadProgressText(`Uploading Image ${i+1}/${files.length}...`);
         const ext = compressedFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
         
@@ -303,10 +342,10 @@ export default function GalleryPage() {
       await supabase.from('posts').insert([{ user_name: userName, urls: uploadedUrls, likes: 0 }]);
       setUploading(false);
       fetchData(true);
-      alert("Photos uploaded successfully!");
+      showToast("Photos uploaded successfully! 📸", "success");
     } catch (error) {
       console.error(error);
-      alert("Upload failed. Please try again.");
+      showToast("Upload failed. Please try again.", "error");
       setUploading(false);
     }
   };
@@ -332,7 +371,7 @@ export default function GalleryPage() {
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (err) {
-      alert("Microphone access denied!");
+      showToast("Microphone access denied! 🎙️", "error");
     }
   };
 
@@ -354,7 +393,8 @@ export default function GalleryPage() {
     if (type === 'voice' && !voiceBlob) return;
 
     setUploading(true);
-    setUploadProgressPercent(50); // Just a quick jump for greetings
+    setUploadProgressPercent(50); 
+    setUploadProgressText("Sending greeting...");
 
     try {
       let contentUrl = "";
@@ -379,11 +419,11 @@ export default function GalleryPage() {
       setTimeout(() => {
         setUploading(false);
         fetchData(true);
-        alert("Greeting added successfully!");
+        showToast("Greeting added successfully! 💌", "success");
       }, 500);
       
     } catch (e) {
-      alert("Failed to send.");
+      showToast("Failed to send.", "error");
       setUploading(false);
     }
   };
@@ -612,10 +652,8 @@ export default function GalleryPage() {
         <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
             <div className="relative w-24 h-24 flex items-center justify-center">
-              {/* Circular Progress Background */}
               <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#fdf2f8" strokeWidth="8" />
-                {/* Circular Progress Fill */}
                 <circle 
                   cx="50" cy="50" r="45" fill="none" stroke="#ec4899" strokeWidth="8" 
                   strokeLinecap="round"
@@ -629,7 +667,7 @@ export default function GalleryPage() {
             
             <div className="text-center">
               <h3 className="font-bold text-gray-800 text-lg mb-1">
-                {uploadProgressPercent < 50 ? "Compressing Photos..." : "Uploading to Gallery..."}
+                {uploadProgressText}
               </h3>
               <p className="text-xs text-gray-500">Please don't close the app.</p>
             </div>
@@ -661,7 +699,7 @@ export default function GalleryPage() {
               <button onClick={() => {
                   setIsSlideshowPlaying(true);
                   if (audioRef.current) {
-                    audioRef.current.play().catch(() => alert("කරුණාකර Music Play වීමට අවසර දෙන්න."));
+                    audioRef.current.play().catch(() => showToast("කරුණාකර Music Play වීමට අවසර දෙන්න.", "error"));
                     setIsPlayingMusic(true);
                   }
                 }} 
@@ -710,6 +748,17 @@ export default function GalleryPage() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* --- Custom Premium Toast Notification --- */}
+      {toast && (
+        <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 
+          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'
+        }`}>
+          <span className="text-xl leading-none">{toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}</span>
+          <span className="tracking-wide">{toast.message}</span>
         </div>
       )}
     </div>
