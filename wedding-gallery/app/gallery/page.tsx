@@ -193,6 +193,7 @@ export default function GalleryPage() {
 
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
+  const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
@@ -212,8 +213,10 @@ export default function GalleryPage() {
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
+  // Initialize Romantic Background Music
   useEffect(() => {
-    audioRef.current = new Audio(AppConfig.backgroundMusicUrl);
+    // Beautiful Soft Romantic Piano & Strings Music
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=soft-romantic-piano-113264.mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -224,6 +227,8 @@ export default function GalleryPage() {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
       setUserName(savedName);
+    } else {
+      setIsEditNameOpen(true);
     }
   }, []);
 
@@ -277,10 +282,10 @@ export default function GalleryPage() {
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
   useEffect(() => {
-    if (!isProjectorOpen || slideshowUrls.length === 0) return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4000);
+    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying) return;
+    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4500); // Cinematic transition every 4.5s
     return () => clearInterval(timer);
-  }, [isProjectorOpen, slideshowUrls.length]);
+  }, [isProjectorOpen, isSlideshowPlaying, slideshowUrls.length]);
 
   const toggleMusic = () => {
     if (!audioRef.current) return;
@@ -299,6 +304,7 @@ export default function GalleryPage() {
 
   const handleCloseProjector = () => {
     setIsProjectorOpen(false);
+    setIsSlideshowPlaying(false);
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlayingMusic(false);
@@ -426,8 +432,17 @@ export default function GalleryPage() {
           70% { transform: scale(1); opacity: 1; }
           100% { transform: scale(0); opacity: 0; }
         }
-        .animate-insta-heart {
-          animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        .animate-insta-heart { animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        /* Apple Cinematic Memory Animations */
+        @keyframes kenBurnsEffect {
+          0% { transform: scale(1); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: scale(1.1) rotate(0.5deg); opacity: 0; }
+        }
+        .animate-ken-burns {
+          animation: kenBurnsEffect 4.5s ease-in-out forwards;
         }
       `}} />
 
@@ -494,7 +509,6 @@ export default function GalleryPage() {
         ) : (
           <div className="flex flex-col gap-6 px-1">
             
-            {/* Conditional Guestbook Form */}
             {!isGuestbookBlocked ? (
               <div className="bg-white p-4 rounded-3xl shadow-sm border border-pink-200 flex flex-col gap-3">
                 <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
@@ -557,7 +571,6 @@ export default function GalleryPage() {
         )}
       </div>
 
-      {/* Conditional Upload Button */}
       {!isUploadBlocked && (
         <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
       )}
@@ -573,7 +586,7 @@ export default function GalleryPage() {
               ඔබේ මංගල දිනයටත් මේ වගේ Digital Gallery එකක් හදාගන්න කැමතිද? තාක්ෂණික සහය සහ නව ඇණවුම් සඳහා අපව සම්බන්ධ කරගන්න.
             </p>
             <div className="bg-pink-50 text-pink-600 py-3 rounded-2xl font-bold text-sm border border-pink-100 shadow-sm flex flex-col gap-1">
-              <span>Powered by kyro tech</span>
+              <span>Powered by MX Tech</span>
               <span className="text-lg">📞 0785508792</span>
             </div>
           </div>
@@ -643,14 +656,43 @@ export default function GalleryPage() {
         </div>
       )}
 
+      {/* Cinematic Memory / Slideshow Modal */}
       {isProjectorOpen && (
-        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-xl">
-          <button onClick={handleCloseProjector} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50">×</button>
-          <button onClick={toggleMusic} className="absolute top-6 left-6 bg-white/90 text-gray-800 px-4 py-2 rounded-full font-bold text-xs z-50 shadow-lg flex items-center gap-2">
-            {isPlayingMusic ? "🎵 Music Playing (Pause)" : "🔇 Play Background Music"}
-          </button>
-          {slideshowUrls.length > 0 && (
-            <img src={slideshowUrls[currentSlide]} alt="Slide" className="absolute inset-0 w-full h-full object-contain" />
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-2xl">
+          <button onClick={handleCloseProjector} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50 transition">×</button>
+          
+          {!isSlideshowPlaying ? (
+            <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
+              <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
+              <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
+              <button onClick={() => {
+                  setIsSlideshowPlaying(true);
+                  if (audioRef.current) {
+                    audioRef.current.play().catch(() => alert("කරුණාකර Music එක Play කරන්න අවසර දෙන්න."));
+                    setIsPlayingMusic(true);
+                  }
+                }} 
+                className="mt-4 bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center gap-3 transition-transform transform hover:scale-105">
+                ▶ Tap to Start
+              </button>
+            </div>
+          ) : (
+            <>
+              <button onClick={toggleMusic} className="absolute top-6 left-6 bg-white/10 text-white/70 px-4 py-2 rounded-full font-bold text-xs z-50 hover:bg-white/20 transition flex items-center gap-2">
+                {isPlayingMusic ? "🎵 Pause Music" : "🔇 Play Music"}
+              </button>
+              
+              {slideshowUrls.length > 0 && (
+                <div className="absolute inset-0 overflow-hidden bg-black flex items-center justify-center">
+                  <img 
+                    key={currentSlide} 
+                    src={slideshowUrls[currentSlide]} 
+                    alt="Memory" 
+                    className="w-full h-full object-contain animate-ken-burns opacity-0" 
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

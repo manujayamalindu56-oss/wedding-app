@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase"; 
 import { AppConfig } from "@/lib/config";
 import JSZip from "jszip";
@@ -304,6 +304,7 @@ export default function AdminPage() {
 
   const [newGreetingComment, setNewGreetingComment] = useState("");
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
+  const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Upload States
@@ -322,6 +323,18 @@ export default function AdminPage() {
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
+
+  useEffect(() => {
+    // Beautiful Soft Romantic Piano & Strings Music
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=soft-romantic-piano-113264.mp3");
+    audioRef.current.loop = true;
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
+
   useEffect(() => {
     const authStatus = localStorage.getItem("isAdminAuth");
     if (authStatus === "true") {
@@ -335,7 +348,6 @@ export default function AdminPage() {
     if (!isAuthenticated) return;
     if (!isSilent) setIsLoading(true);
     
-    // Fetch Data
     const { data: postsData } = await supabase.from('posts').select('*, comments(*)').order('created_at', { ascending: false });
     const { data: greetingsData } = await supabase.from('greetings').select('*').order('created_at', { ascending: false });
     const { data: settingsData } = await supabase.from('app_settings').select('*').eq('id', 1).single();
@@ -357,7 +369,6 @@ export default function AdminPage() {
       setGreetings(sortedGreetings);
     }
     
-    // Update States from DB
     if (settingsData) {
       setIsUploadBlocked(settingsData.uploads_blocked);
       setIsGuestbookBlocked(settingsData.guestbook_blocked);
@@ -377,6 +388,27 @@ export default function AdminPage() {
   }, [isAuthenticated, showSplash]);
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
+
+  useEffect(() => {
+    if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying) return;
+    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideshowUrls.length), 4500); // 4.5s matches Cinematic Animation
+    return () => clearInterval(timer);
+  }, [isProjectorOpen, isSlideshowPlaying, slideshowUrls.length]);
+
+  const toggleMusic = () => {
+    if (!audioRef.current) return;
+    if (isPlayingMusic) {
+      audioRef.current.pause();
+      setIsPlayingMusic(false);
+    } else {
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsPlayingMusic(true))
+          .catch(() => alert("කරුණාකර බ්‍රවුසරයේ අවසර ලබාදීමට නැවත වරක් Music බොත්තම ඔබන්න."));
+      }
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -399,7 +431,6 @@ export default function AdminPage() {
     setGreetings([]);
   };
 
-  // Toggle Database Settings
   const toggleUploadBlock = async () => {
     const newVal = !isUploadBlocked;
     setIsUploadBlocked(newVal);
@@ -602,6 +633,20 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-24 relative">
+      <style dangerouslySetInnerHTML={{__html: `
+        /* Apple Cinematic Memory Animations */
+        @keyframes kenBurnsEffect {
+          0% { transform: scale(1); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: scale(1.1) rotate(0.5deg); opacity: 0; }
+        }
+        .animate-ken-burns {
+          animation: kenBurnsEffect 4.5s ease-in-out forwards;
+        }
+      `}} />
+
+      {/* Header */}
       <div className="bg-white px-3 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
         <button onClick={() => setIsHostPanelOpen(true)} className="flex items-center bg-pink-50 px-2 py-1.5 rounded-full border border-pink-100 shadow-inner z-10 transition-transform hover:scale-105" title="Host Panel">
           <span className="text-lg leading-none">👩‍❤️‍👨</span>
@@ -614,6 +659,7 @@ export default function AdminPage() {
         <div className="w-9 z-10"></div> 
       </div>
 
+      {/* --- HOST PANEL (Off-canvas Drawer) --- */}
       {isHostPanelOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm transition-opacity" onClick={() => setIsHostPanelOpen(false)}></div>
@@ -700,6 +746,7 @@ export default function AdminPage() {
         </>
       )}
 
+      {/* Main Content (Tabs) */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
           <button onClick={() => setActiveTab("album")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${activeTab === "album" ? "bg-pink-500 text-white shadow-md" : "text-gray-500 hover:bg-pink-50"}`}>🖼️ Album</button>
@@ -783,7 +830,9 @@ export default function AdminPage() {
         )}
       </div>
 
-      <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">+</button>
+      {!isUploadBlocked && (
+        <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">+</button>
+      )}
 
       {isUploadOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
@@ -854,6 +903,55 @@ export default function AdminPage() {
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Del</span>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Cinematic Memory / Slideshow Modal */}
+      {isProjectorOpen && (
+        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-2xl">
+          <button onClick={() => {
+              setIsProjectorOpen(false);
+              setIsSlideshowPlaying(false);
+              if (audioRef.current) { audioRef.current.pause(); setIsPlayingMusic(false); }
+            }} className="absolute top-6 right-6 text-white bg-white/20 hover:bg-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-50 transition">×</button>
+          
+          {!isSlideshowPlaying ? (
+            <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
+              <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
+              <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
+              <button onClick={() => {
+                  setIsSlideshowPlaying(true);
+                  if (audioRef.current) {
+                    audioRef.current.play().catch(() => alert("කරුණාකර Music Play වීමට අවසර දෙන්න."));
+                    setIsPlayingMusic(true);
+                  }
+                }} 
+                className="mt-4 bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(244,63,94,0.4)] flex items-center gap-3 transition-transform transform hover:scale-105">
+                ▶ Tap to Start
+              </button>
+            </div>
+          ) : (
+            <>
+              <button onClick={() => {
+                  if (!audioRef.current) return;
+                  if (isPlayingMusic) { audioRef.current.pause(); setIsPlayingMusic(false); } 
+                  else { audioRef.current.play(); setIsPlayingMusic(true); }
+                }} className="absolute top-6 left-6 bg-white/10 text-white/70 px-4 py-2 rounded-full font-bold text-xs z-50 hover:bg-white/20 transition flex items-center gap-2">
+                {isPlayingMusic ? "🎵 Pause Music" : "🔇 Play Music"}
+              </button>
+              
+              {slideshowUrls.length > 0 && (
+                <div className="absolute inset-0 overflow-hidden bg-black flex items-center justify-center">
+                  <img 
+                    key={currentSlide} 
+                    src={slideshowUrls[currentSlide]} 
+                    alt="Memory" 
+                    className="w-full h-full object-contain animate-ken-burns opacity-0" 
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
