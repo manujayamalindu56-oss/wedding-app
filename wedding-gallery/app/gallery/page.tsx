@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 
-// --- Image Compressor Helper (Fix for iPhone HEIC issue included in input accept tags) ---
+// --- Image Compressor Helper ---
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -50,7 +50,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const [newComment, setNewComment] = useState("");
   const [showHeart, setShowHeart] = useState(false);
   
-  // Local states for immediate Like updates
   const [likesCount, setLikesCount] = useState(post.likes || 0);
   const [hasLikedLocally, setHasLikedLocally] = useState(false);
 
@@ -68,7 +67,6 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
     if (hasLikedLocally) return; 
     setHasLikedLocally(true);
     setLikesCount((prev: number) => prev + 1);
-    
     await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
   };
 
@@ -210,6 +208,10 @@ export default function GalleryPage() {
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
+  // App Control States (From Database)
+  const [isUploadBlocked, setIsUploadBlocked] = useState(false);
+  const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
+
   useEffect(() => {
     audioRef.current = new Audio(AppConfig.backgroundMusicUrl);
     audioRef.current.loop = true;
@@ -218,7 +220,6 @@ export default function GalleryPage() {
     };
   }, []);
 
-  // Fetch the name silently from localStorage (Removed auto-popup)
   useEffect(() => {
     const savedName = localStorage.getItem("wedding_guest_name");
     if (savedName) {
@@ -240,6 +241,7 @@ export default function GalleryPage() {
     if (!isSilent) setIsLoading(true);
     const { data: postsData } = await supabase.from('posts').select('*, comments(*)').order('created_at', { ascending: false });
     const { data: greetingsData } = await supabase.from('greetings').select('*').order('created_at', { ascending: false });
+    const { data: settingsData } = await supabase.from('app_settings').select('*').eq('id', 1).single();
     
     if (postsData) {
       const sortedPosts = postsData.sort((a, b) => {
@@ -257,6 +259,12 @@ export default function GalleryPage() {
       });
       setGreetings(sortedGreetings);
     }
+
+    if (settingsData) {
+      setIsUploadBlocked(settingsData.uploads_blocked);
+      setIsGuestbookBlocked(settingsData.guestbook_blocked);
+    }
+
     if (!isSilent) setIsLoading(false);
   };
 
@@ -423,7 +431,6 @@ export default function GalleryPage() {
         }
       `}} />
 
-      {/* Header Updated with Info Icon */}
       <div className="bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 border-pink-500">
         <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => { setTempName(userName); setIsEditNameOpen(true); }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-inner bg-pink-100 text-pink-600 border border-pink-200" title="Change Name">
@@ -486,29 +493,38 @@ export default function GalleryPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-6 px-1">
-            <div className="bg-white p-4 rounded-3xl shadow-sm border border-pink-200 flex flex-col gap-3">
-              <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
-              <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න..." className="border border-pink-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800 h-20 resize-none" />
-              <button onClick={() => handleSendGreeting('text')} className="bg-pink-500 text-white py-2.5 rounded-xl font-bold text-sm shadow hover:bg-pink-600 transition">පණිවිඩය යවන්න</button>
+            
+            {/* Conditional Guestbook Form */}
+            {!isGuestbookBlocked ? (
+              <div className="bg-white p-4 rounded-3xl shadow-sm border border-pink-200 flex flex-col gap-3">
+                <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
+                <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න..." className="border border-pink-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-pink-500 bg-pink-50/30 text-gray-800 h-20 resize-none" />
+                <button onClick={() => handleSendGreeting('text')} className="bg-pink-500 text-white py-2.5 rounded-xl font-bold text-sm shadow hover:bg-pink-600 transition">පණිවිඩය යවන්න</button>
 
-              <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
-                <span className="text-xs text-gray-500 font-medium">හඬ පටයක් (Voice Note) එකතු කරන්න:</span>
-                {!isRecordingVoice ? (
-                  <button onClick={startVoiceRecording} className="bg-purple-100 text-purple-700 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:bg-purple-200 transition">🎙️ රෙකෝඩ් කිරීම ආරම්භ කරන්න</button>
-                ) : (
-                  <div className="flex items-center justify-between bg-red-50 p-2 rounded-xl border border-red-200">
-                    <span className="text-xs text-red-600 font-bold animate-pulse">Recording... 00:{recordingTime < 10 ? `0${recordingTime}` : recordingTime}</span>
-                    <button onClick={stopVoiceRecording} className="bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold">නවත්වා යවන්න</button>
-                  </div>
-                )}
-                {voiceBlob && !isRecordingVoice && (
-                  <div className="flex items-center justify-between bg-green-50 p-2 rounded-xl border border-green-200 text-xs text-green-700 font-bold">
-                    <span>✅ හඬ පටය සූදානම්!</span>
-                    <button onClick={() => handleSendGreeting('voice')} className="bg-green-600 text-white px-3 py-1 rounded-lg">යවන්න</button>
-                  </div>
-                )}
+                <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
+                  <span className="text-xs text-gray-500 font-medium">හඬ පටයක් (Voice Note) එකතු කරන්න:</span>
+                  {!isRecordingVoice ? (
+                    <button onClick={startVoiceRecording} className="bg-purple-100 text-purple-700 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:bg-purple-200 transition">🎙️ රෙකෝඩ් කිරීම ආරම්භ කරන්න</button>
+                  ) : (
+                    <div className="flex items-center justify-between bg-red-50 p-2 rounded-xl border border-red-200">
+                      <span className="text-xs text-red-600 font-bold animate-pulse">Recording... 00:{recordingTime < 10 ? `0${recordingTime}` : recordingTime}</span>
+                      <button onClick={stopVoiceRecording} className="bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold">නවත්වා යවන්න</button>
+                    </div>
+                  )}
+                  {voiceBlob && !isRecordingVoice && (
+                    <div className="flex items-center justify-between bg-green-50 p-2 rounded-xl border border-green-200 text-xs text-green-700 font-bold">
+                      <span>✅ හඬ පටය සූදානම්!</span>
+                      <button onClick={() => handleSendGreeting('voice')} className="bg-green-600 text-white px-3 py-1 rounded-lg">යවන්න</button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 text-center flex flex-col items-center gap-2">
+                <span className="text-3xl">🔒</span>
+                <p className="text-gray-600 font-bold text-sm">නව සුබපැතුම් එක් කිරීම තාවකාලිකව නවත්වා ඇත.</p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
               {greetings.map((greeting) => {
@@ -541,9 +557,11 @@ export default function GalleryPage() {
         )}
       </div>
 
-      <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
+      {/* Conditional Upload Button */}
+      {!isUploadBlocked && (
+        <button onClick={() => setIsUploadOpen(true)} className="fixed bottom-6 right-6 bg-pink-500 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-pink-600 z-40">＋</button>
+      )}
 
-      {/* Info Popup Modal */}
       {isInfoOpen && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up relative text-center border-t-4 border-blue-500">
@@ -555,7 +573,7 @@ export default function GalleryPage() {
               ඔබේ මංගල දිනයටත් මේ වගේ Digital Gallery එකක් හදාගන්න කැමතිද? තාක්ෂණික සහය සහ නව ඇණවුම් සඳහා අපව සම්බන්ධ කරගන්න.
             </p>
             <div className="bg-pink-50 text-pink-600 py-3 rounded-2xl font-bold text-sm border border-pink-100 shadow-sm flex flex-col gap-1">
-              <span>Powered by MX Tech</span>
+              <span>Powered by kyro tech</span>
               <span className="text-lg">📞 0785508792</span>
             </div>
           </div>
