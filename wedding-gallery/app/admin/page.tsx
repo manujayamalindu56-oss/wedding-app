@@ -275,9 +275,10 @@ export default function AdminPage() {
   const [isSlideshowFinished, setIsSlideshowFinished] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Upload States
+// Upload States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState("");
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
 
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
@@ -850,13 +851,15 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Modern Progress Bar for Uploading */}
+   {/* Modern Progress Bar for Uploading */}
       {uploading && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
             <div className="relative w-24 h-24 flex items-center justify-center">
+              {/* Circular Progress Background */}
               <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#fdf2f8" strokeWidth="8" />
+                {/* Circular Progress Fill */}
                 <circle 
                   cx="50" cy="50" r="45" fill="none" stroke="#ec4899" strokeWidth="8" 
                   strokeLinecap="round"
@@ -870,7 +873,7 @@ export default function AdminPage() {
             
             <div className="text-center">
               <h3 className="font-bold text-gray-800 text-lg mb-1">
-                {uploadProgressPercent < 50 && uploadProgressText.includes("Compressing") ? "Compressing Photos..." : "Uploading to Gallery..."}
+                {uploadProgressPercent < 50 ? "Compressing Photos..." : "Uploading to Gallery..."}
               </h3>
               <p className="text-xs text-gray-500">Please don't close the app.</p>
             </div>
