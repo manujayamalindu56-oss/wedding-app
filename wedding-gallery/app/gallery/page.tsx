@@ -2,44 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
+import imageCompression from 'browser-image-compression'; // <-- අලුත් Compressor එක
 
-async function compressImage(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-        } else {
-          if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
-          } else {
-            resolve(file);
-          }
-        }, "image/jpeg", 0.75);
-      };
-    };
-  });
-}
-
+// -------------------------------------------------------------
+// Guest Feed Post Component
+// -------------------------------------------------------------
 const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
@@ -169,6 +136,9 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   );
 };
 
+// -------------------------------------------------------------
+// Main Gallery Page
+// -------------------------------------------------------------
 export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState("feed");
   const [viewType, setViewType] = useState("feed"); 
@@ -181,8 +151,10 @@ export default function GalleryPage() {
   const [tempName, setTempName] = useState("");
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  
+  // --- New Upload Progress States ---
   const [uploading, setUploading] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState("");
+  const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
 
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
@@ -207,7 +179,7 @@ export default function GalleryPage() {
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
   useEffect(() => {
-    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -294,25 +266,41 @@ export default function GalleryPage() {
     }
 
     setUploading(true);
+    setUploadProgressPercent(0);
+    setIsUploadOpen(false);
+
     try {
       const uploadedUrls = [];
+      const totalSteps = files.length * 2; // Compression and Uploading each take a step
+      let completedSteps = 0;
+
       for (let i = 0; i < files.length; i++) {
-        setUploadProgressText(`Compressing image (${i + 1}/${files.length})...`);
-        const compressed = await compressImage(files[i]);
+        // --- 1. Compress Image ---
+        const compressionOptions = {
+          maxSizeMB: 1, // Compress to max 1MB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(files[i], compressionOptions);
         
-        setUploadProgressText(`Uploading image (${i + 1}/${files.length})...`);
-        const ext = compressed.name.split('.').pop();
+        completedSteps++;
+        setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
+
+        // --- 2. Upload Image ---
+        const ext = compressedFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
         
-        const { error: uploadError } = await supabase.storage.from('wedding-photos').upload(fileName, compressed);
+        const { error: uploadError } = await supabase.storage.from('wedding-photos').upload(fileName, compressedFile);
         if (uploadError) throw uploadError;
         
         const { data: { publicUrl } } = supabase.storage.from('wedding-photos').getPublicUrl(fileName);
         uploadedUrls.push(publicUrl);
+        
+        completedSteps++;
+        setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
 
       await supabase.from('posts').insert([{ user_name: userName, urls: uploadedUrls, likes: 0 }]);
-      setIsUploadOpen(false);
       setUploading(false);
       fetchData(true);
       alert("Photos uploaded successfully!");
@@ -366,7 +354,7 @@ export default function GalleryPage() {
     if (type === 'voice' && !voiceBlob) return;
 
     setUploading(true);
-    setUploadProgressText("Sending greeting...");
+    setUploadProgressPercent(50); // Just a quick jump for greetings
 
     try {
       let contentUrl = "";
@@ -384,11 +372,16 @@ export default function GalleryPage() {
         content: type === 'text' ? greetingText : contentUrl
       }]);
 
+      setUploadProgressPercent(100);
       setGreetingText("");
       setVoiceBlob(null);
-      setUploading(false);
-      fetchData(true);
-      alert("Greeting added successfully!");
+      
+      setTimeout(() => {
+        setUploading(false);
+        fetchData(true);
+        alert("Greeting added successfully!");
+      }, 500);
+      
     } catch (e) {
       alert("Failed to send.");
       setUploading(false);
@@ -614,10 +607,33 @@ export default function GalleryPage() {
         </div>
       )}
 
+      {/* Modern Progress Bar for Uploading */}
       {uploading && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-          <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-white font-bold text-sm tracking-wide">{uploadProgressText}</p>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
+          <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
+            <div className="relative w-24 h-24 flex items-center justify-center">
+              {/* Circular Progress Background */}
+              <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#fdf2f8" strokeWidth="8" />
+                {/* Circular Progress Fill */}
+                <circle 
+                  cx="50" cy="50" r="45" fill="none" stroke="#ec4899" strokeWidth="8" 
+                  strokeLinecap="round"
+                  strokeDasharray="283" 
+                  strokeDashoffset={283 - (283 * uploadProgressPercent) / 100}
+                  className="transition-all duration-300 ease-out"
+                />
+              </svg>
+              <span className="text-2xl font-extrabold text-pink-500">{uploadProgressPercent}%</span>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="font-bold text-gray-800 text-lg mb-1">
+                {uploadProgressPercent < 50 ? "Compressing Photos..." : "Uploading to Gallery..."}
+              </h3>
+              <p className="text-xs text-gray-500">Please don't close the app.</p>
+            </div>
+          </div>
         </div>
       )}
 

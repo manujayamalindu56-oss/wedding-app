@@ -4,35 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { AppConfig } from "@/lib/config";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import imageCompression from 'browser-image-compression'; // <-- අලුත් Compressor එක
 
-async function compressImage(file: File): Promise<File> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
-        if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
-        else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (blob) resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
-          else resolve(file);
-        }, "image/jpeg", 0.75);
-      };
-    };
-  });
-}
-
+// -------------------------------------------------------------
+// Admin Splash Screen Component
+// -------------------------------------------------------------
 const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   const [walk, setWalk] = useState(false);
   const [showNames, setShowNames] = useState(false);
@@ -80,6 +56,9 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   );
 };
 
+// -------------------------------------------------------------
+// Admin Greeting Component
+// -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   const [showHeart, setShowHeart] = useState(false);
   const isHostMsg = greeting.user_name === AppConfig.hostName;
@@ -136,6 +115,9 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
   );
 }
 
+// -------------------------------------------------------------
+// Admin Feed Post Component
+// -------------------------------------------------------------
 function AdminFeedPost({ 
   post, onDeletePhoto, onDeleteFullPost, onDeleteComment, onAddComment, onUpdate, onPinPost
 }: { 
@@ -293,9 +275,10 @@ export default function AdminPage() {
   const [isSlideshowFinished, setIsSlideshowFinished] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Upload States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState("");
+  const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
 
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -309,8 +292,7 @@ export default function AdminPage() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   useEffect(() => {
-    // Upbeat, warm & bright track. (Replace this URL if you have the original song uploaded in Supabase)
-    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
+    audioRef.current = new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6ff1bc0.mp3?filename=upbeat-acoustic-113264.mp3");
     audioRef.current.loop = true;
     return () => {
       if (audioRef.current) audioRef.current.pause();
@@ -371,7 +353,6 @@ export default function AdminPage() {
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
-  // Cinematic Slideshow Timer with Stop Logic
   useEffect(() => {
     if (!isProjectorOpen || slideshowUrls.length === 0 || !isSlideshowPlaying || isSlideshowFinished) return;
     const timer = setInterval(() => {
@@ -454,30 +435,40 @@ export default function AdminPage() {
     if (files.length === 0) return;
 
     setUploading(true);
+    setUploadProgressPercent(0);
+    setIsUploadOpen(false);
+
     try {
       const uploadedUrls = [];
-      for (let i = 0; i < files.length; i++) {
-        setUploadProgressText(`Compressing image (${i + 1}/${files.length})...`);
-        const compressed = await compressImage(files[i]);
+      const totalSteps = files.length * 2;
+      let completedSteps = 0;
 
-        setUploadProgressText(`Uploading image (${i + 1}/${files.length})...`);
-        const ext = compressed.name.split('.').pop();
+      for (let i = 0; i < files.length; i++) {
+        const compressionOptions = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        const compressedFile = await imageCompression(files[i], compressionOptions);
+        
+        completedSteps++;
+        setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
+
+        const ext = compressedFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage.from('wedding-photos').upload(fileName, compressed);
+        const { error: uploadError } = await supabase.storage.from('wedding-photos').upload(fileName, compressedFile);
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage.from('wedding-photos').getPublicUrl(fileName);
         uploadedUrls.push(publicUrl);
+        
+        completedSteps++;
+        setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
 
       await supabase.from('posts').insert([{ user_name: AppConfig.hostName, urls: uploadedUrls }]);
-      setIsUploadOpen(false);
+      setUploading(false);
       fetchData(true);
       alert("Photos uploaded successfully!");
     } catch (error) {
       alert("Upload failed. Please try again.");
-    } finally {
       setUploading(false);
     }
   };
@@ -559,6 +550,8 @@ export default function AdminPage() {
 
     setUploading(true);
     setUploadProgressText("Zipping Photos...");
+    // Hack: re-use progress circle for zip progress, just set to 50 for visual feedback
+    setUploadProgressPercent(50); 
 
     try {
       const zip = new JSZip();
@@ -740,6 +733,7 @@ export default function AdminPage() {
         </>
       )}
 
+      {/* Main Content (Tabs) */}
       <div className="flex justify-center mb-4 px-4">
         <div className="bg-white rounded-full flex w-full max-w-sm shadow-sm border border-pink-100 p-1">
           <button onClick={() => setActiveTab("album")} className={`flex-1 py-2 rounded-full text-sm font-bold transition-colors ${activeTab === "album" ? "bg-pink-500 text-white shadow-md" : "text-gray-500 hover:bg-pink-50"}`}>🖼️ Album</button>
@@ -856,10 +850,31 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Modern Progress Bar for Uploading */}
       {uploading && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-          <div className="w-12 h-12 border-4 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-white font-bold text-sm tracking-wide">{uploadProgressText}</p>
+        <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
+          <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
+            <div className="relative w-24 h-24 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#fdf2f8" strokeWidth="8" />
+                <circle 
+                  cx="50" cy="50" r="45" fill="none" stroke="#ec4899" strokeWidth="8" 
+                  strokeLinecap="round"
+                  strokeDasharray="283" 
+                  strokeDashoffset={283 - (283 * uploadProgressPercent) / 100}
+                  className="transition-all duration-300 ease-out"
+                />
+              </svg>
+              <span className="text-2xl font-extrabold text-pink-500">{uploadProgressPercent}%</span>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="font-bold text-gray-800 text-lg mb-1">
+                {uploadProgressPercent < 50 && uploadProgressText.includes("Compressing") ? "Compressing Photos..." : "Uploading to Gallery..."}
+              </h3>
+              <p className="text-xs text-gray-500">Please don't close the app.</p>
+            </div>
+          </div>
         </div>
       )}
 
