@@ -3,6 +3,59 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+// -------------------------------------------------------------
+// Guest Splash Screen Component
+// -------------------------------------------------------------
+const GuestSplashScreen = ({ onFinish, coupleNames, weddingDate }: { onFinish: () => void, coupleNames: string, weddingDate: string }) => {
+  const [walk, setWalk] = useState(false);
+  const [showNames, setShowNames] = useState(false);
+
+  useEffect(() => {
+    const walkTimer = setTimeout(() => setWalk(true), 100);
+    const nameTimer = setTimeout(() => setShowNames(true), 1600);
+    const redirectTimer = setTimeout(() => onFinish(), 5000);
+    return () => { clearTimeout(walkTimer); clearTimeout(nameTimer); clearTimeout(redirectTimer); };
+  }, [onFinish]);
+
+  const nameParts = coupleNames ? coupleNames.split("&") : ["Groom", "Bride"];
+  const name1 = nameParts[0]?.trim() || "Groom";
+  const name2 = nameParts[1]?.trim() || "Bride";
+
+  return (
+    <div className="min-h-screen bg-pink-50 flex flex-col items-center justify-center font-sans overflow-hidden">
+      <div className="relative w-full max-w-sm h-72 flex items-center justify-center">
+        <div className={`absolute left-0 top-16 w-32 h-32 flex items-center justify-center transition-all duration-[1500ms] ease-out ${walk ? "translate-x-12 opacity-100" : "-translate-x-16 opacity-0"}`}>
+          <img src="/groom.png" alt="Groom" className={`w-full h-full object-contain transition-opacity duration-1000 ${showNames ? "opacity-0" : "opacity-100"}`} />
+        </div>
+        <div className={`absolute right-0 bottom-16 w-32 h-32 flex items-center justify-center transition-all duration-[1500ms] ease-out ${walk ? "-translate-x-12 opacity-100" : "translate-x-16 opacity-0"}`}>
+          <img src="/bride.png" alt="Bride" className={`w-full h-full object-contain transition-opacity duration-1000 ${showNames ? "opacity-0" : "opacity-100"}`} />
+        </div>
+        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-1000 ease-in-out ${showNames ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}>
+          <div className="flex flex-col w-full max-w-[260px] z-10">
+            <div className="self-start text-left pl-2 mb-2">
+              <span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name1}</span>
+            </div>
+            <div className="self-center my-1">
+              <span className="text-[3.5rem] text-pink-500 italic drop-shadow-sm leading-none">&</span>
+            </div>
+            <div className="self-end text-right pr-2 mt-2">
+              <span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name2}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className={`mt-12 transition-all duration-1000 ${showNames ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}>
+        <p className="text-xl text-gray-500 font-bold tracking-[0.35em] bg-white/40 px-4 py-1.5 rounded-full shadow-sm border border-pink-100/50">
+          {weddingDate || "Wedding Date"}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
+// Main Welcome Page Component
+// -------------------------------------------------------------
 export default function WeddingWelcomePage() {
   const params = useParams();
   const router = useRouter();
@@ -11,12 +64,18 @@ export default function WeddingWelcomePage() {
   const [weddingInfo, setWeddingInfo] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [guestName, setGuestName] = useState("");
+  
+  // අලුත් Splash Screen State එක
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
     if (!weddingSlug) return;
     const fetchWedding = async () => {
       const { data, error } = await supabase.from('weddings').select('*').eq('slug', weddingSlug).single();
-      if (data) setWeddingInfo(data);
+      if (data) {
+        setWeddingInfo(data);
+        setShowSplash(true); // දත්ත ආවම මුලින්ම Splash එක පෙන්නන්න
+      }
       setIsLoading(false);
     };
     fetchWedding();
@@ -31,7 +90,7 @@ export default function WeddingWelcomePage() {
     e.preventDefault();
     if (guestName.trim()) {
       localStorage.setItem(`wedding_guest_name_${weddingSlug}`, guestName);
-      router.push(`/${weddingSlug}/gallery`); // <--- නිවැරදි ගැලරි ලින්ක් එකට යවනවා
+      router.push(`/${weddingSlug}/gallery`);
     } else {
       alert("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.");
     }
@@ -49,6 +108,11 @@ export default function WeddingWelcomePage() {
     </div>
   );
 
+  // Splash Screen එක පේන වෙලාව
+  if (showSplash) {
+    return <GuestSplashScreen onFinish={() => setShowSplash(false)} coupleNames={weddingInfo.couple_names} weddingDate={weddingInfo.wedding_date} />;
+  }
+
   return (
     <div className="min-h-screen bg-pink-50 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
       {/* Background Decorations */}
@@ -59,7 +123,7 @@ export default function WeddingWelcomePage() {
         <div className="w-20 h-20 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-inner">
           💒
         </div>
-        {/* Database එකෙන් එන නම සහ දිනය පෙන්නනවා */}
+        
         <h1 className="text-3xl font-extrabold text-gray-800 mb-1 font-serif italic">{weddingInfo.couple_names}</h1>
         <p className="text-sm text-gray-500 font-bold tracking-widest mb-8">{weddingInfo.wedding_date}</p>
         
