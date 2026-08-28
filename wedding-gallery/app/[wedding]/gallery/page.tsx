@@ -10,7 +10,13 @@ const THEMES: Record<string, any> = {
   gold: { main: 'bg-yellow-500', text: 'text-yellow-700', bgLight: 'bg-yellow-50', border: 'border-yellow-200', iconBg: 'bg-yellow-100', outline: 'focus:border-yellow-500', borderMain: 'border-yellow-500', fill: '#eab308', stroke: '#fefce8' },
   emerald: { main: 'bg-emerald-500', text: 'text-emerald-600', bgLight: 'bg-emerald-50', border: 'border-emerald-200', iconBg: 'bg-emerald-100', outline: 'focus:border-emerald-500', borderMain: 'border-emerald-500', fill: '#10b981', stroke: '#ecfdf5' },
   blue: { main: 'bg-blue-500', text: 'text-blue-600', bgLight: 'bg-blue-50', border: 'border-blue-200', iconBg: 'bg-blue-100', outline: 'focus:border-blue-500', borderMain: 'border-blue-500', fill: '#3b82f6', stroke: '#eff6ff' },
-  purple: { main: 'bg-purple-500', text: 'text-purple-600', bgLight: 'bg-purple-50', border: 'border-purple-200', iconBg: 'bg-purple-100', outline: 'focus:border-purple-500', borderMain: 'border-purple-500', fill: '#a855f7', stroke: '#faf5ff' }
+  purple: { main: 'bg-purple-500', text: 'text-purple-600', bgLight: 'bg-purple-50', border: 'border-purple-200', iconBg: 'bg-purple-100', outline: 'focus:border-purple-500', borderMain: 'border-purple-500', fill: '#a855f7', stroke: '#faf5ff' },
+  
+  // අලුතින් දැම්ම Black (Monochrome) Premium Theme එක
+  black: { main: 'bg-gray-900', text: 'text-gray-900', bgLight: 'bg-gray-100', border: 'border-gray-300', iconBg: 'bg-gray-200', outline: 'focus:border-gray-900', borderMain: 'border-gray-900', fill: '#111827', stroke: '#f3f4f6' },
+
+  // කස්ටමර් වෙනත් පාටක් (උදා: Maroon #800000) ඉල්ලුවොත් හදන විදිහට උදාහරණයක්
+  maroon: { main: 'bg-[#800000]', text: 'text-[#800000]', bgLight: 'bg-[#800000]/10', border: 'border-[#800000]/30', iconBg: 'bg-[#800000]/20', outline: 'focus:border-[#800000]', borderMain: 'border-[#800000]', fill: '#800000', stroke: '#fdf2f8' }
 };
 
 async function compressImage(file: File): Promise<File> {
