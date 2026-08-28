@@ -89,7 +89,7 @@ const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate }: { onFinish: (
 // -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin, hostName }: any) {
   const [showHeart, setShowHeart] = useState(false);
-  onst isHostMsg = greeting.user_name === "Mr & Mrs";
+  const isHostMsg = greeting.user_name === "Mr & Mrs";
 
   const handleDoubleTap = async (e: any) => {
     e.preventDefault();
