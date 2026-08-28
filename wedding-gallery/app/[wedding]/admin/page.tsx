@@ -89,7 +89,7 @@ const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate }: { onFinish: (
 // -------------------------------------------------------------
 function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin, hostName }: any) {
   const [showHeart, setShowHeart] = useState(false);
-  const isHostMsg = greeting.user_name === hostName;
+  onst isHostMsg = greeting.user_name === "Mr & Mrs";
 
   const handleDoubleTap = async (e: any) => {
     e.preventDefault();
@@ -136,7 +136,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin, hostName }: an
 
       {greeting.liked_by_host && (
         <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">
-          Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {hostName}</span>
+          Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 Mr & Mrs</span>
         </div>
       )}
     </div>
@@ -183,7 +183,7 @@ function AdminFeedPost({
     setTimeout(() => setShowHeart(false), 800);
   };
 
-  const isHostPost = post.user_name === hostName;
+  const isHostPost = post.user_name === "Mr & Mrs";
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : 'border-pink-100'}`}>
@@ -238,7 +238,7 @@ function AdminFeedPost({
         </div>
         {post.liked_by_host && (
           <div className="text-xs text-gray-600 font-medium flex items-center gap-1">
-            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {hostName}</span>
+            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 Mr & Mrs</span>
           </div>
         )}
       </div>
@@ -253,7 +253,7 @@ function AdminFeedPost({
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
               {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
               {(post.comments || []).map((c: any) => {
-                const isHostComment = c.user_name === hostName;
+                const isHostComment = c.user_name === "Mr & Mrs";
                 return (
                   <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? 'bg-pink-50 border-pink-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex items-start gap-2.5">
@@ -271,7 +271,7 @@ function AdminFeedPost({
               })}
             </div>
             <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-gray-100">
-              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={`Reply as ${hostName}...`} className="flex-1 border border-pink-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/50 text-gray-800" />
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Reply as Mr & Mrs..." className="flex-1 border border-pink-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/50 text-gray-800" />
               <button type="submit" className="bg-pink-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-pink-600 transition shadow-sm">Reply</button>
             </form>
           </div>
@@ -511,7 +511,7 @@ export default function AdminPage() {
 
       await supabase.from('posts').insert([{ 
         wedding_slug: weddingSlug,
-        user_name: weddingInfo.couple_names, 
+        user_name: "Mr & Mrs", 
         urls: uploadedUrls 
       }]);
       setUploading(false);
@@ -599,7 +599,7 @@ export default function AdminPage() {
   const handleAddComment = async (postId: string, text: string) => {
     await supabase.from('comments').insert([{ 
       post_id: postId, 
-      user_name: weddingInfo.couple_names, 
+      user_name: "Mr & Mrs", 
       text: text, 
       is_admin: true,
       wedding_slug: weddingSlug
@@ -613,7 +613,7 @@ export default function AdminPage() {
     if (newGreetingComment.trim() === "") return;
     await supabase.from('greetings').insert([{ 
       wedding_slug: weddingSlug,
-      user_name: weddingInfo.couple_names, 
+      user_name: "Mr & Mrs", 
       type: "text", 
       content: newGreetingComment 
     }]);
@@ -913,7 +913,7 @@ export default function AdminPage() {
         ) : (
           <div className="w-full animate-fade-in-up">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-pink-200 mb-6">
-              <h4 className="font-bold text-gray-700 text-xs mb-2">Post as {weddingInfo.couple_names}</h4>
+              <h4 className="font-bold text-gray-700 text-xs mb-2">Post as Mr & Mrs</h4>
               <form onSubmit={handleAddHostGreeting} className="flex gap-2">
                 <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} placeholder="ස්තුති පණිවිඩයක් ලියන්න..." className="flex-1 border border-pink-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/40 text-gray-800" />
                 <button type="submit" className="bg-pink-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-pink-600 transition shadow-sm">Post</button>
@@ -938,7 +938,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-gray-800 text-lg">Post as {weddingInfo.couple_names}</h3>
+              <h3 className="font-bold text-gray-800 text-lg">Post as Mr & Mrs</h3>
               <button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-2">

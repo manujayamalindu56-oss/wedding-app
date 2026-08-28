@@ -82,7 +82,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
     setTimeout(() => setShowHeart(false), 1000); 
   };
 
-  const isHostPost = post.user_name === coupleNames;
+  const isHostPost = post.user_name === "Mr & Mrs";
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : 'border-pink-100'}`}>
@@ -134,7 +134,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
         </div>
         {post.liked_by_host && (
           <div className="text-xs text-gray-600 font-medium flex items-center gap-1">
-            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {coupleNames}</span>
+            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 Mr & Mrs</span>
           </div>
         )}
       </div>
@@ -150,7 +150,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
               {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
               {(post.comments || []).map((c: any) => {
-                const isHostComment = c.user_name === coupleNames;
+                const isHostComment = c.user_name === "Mr & Mrs";
                 return (
                   <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? 'bg-pink-50 border-pink-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex items-start gap-2.5">
@@ -600,7 +600,7 @@ export default function GalleryPage() {
 
             <div className="flex flex-col gap-3">
               {greetings.map((greeting) => {
-                const isHostMsg = greeting.user_name === weddingInfo.couple_names;
+                const isHostMsg = greeting.user_name === "Mr & Mrs";
                 return (
                   <div key={greeting.id} className={`bg-white p-4 rounded-2xl shadow-sm border ${greeting.is_pinned ? 'border-yellow-300 bg-yellow-50/20' : (isHostMsg ? 'border-pink-300 bg-pink-50/30' : 'border-pink-100')} relative`}>
                     <div className="flex items-center gap-2 mb-3">
@@ -618,7 +618,7 @@ export default function GalleryPage() {
                     
                     {greeting.liked_by_host && (
                       <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">
-                        Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {weddingInfo.couple_names}</span>
+                        Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 Mr & Mrs</span>
                       </div>
                     )}
                   </div>
