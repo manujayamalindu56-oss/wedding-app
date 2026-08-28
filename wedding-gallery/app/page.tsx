@@ -1,66 +1,33 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AppConfig } from "@/lib/config";
 
-export default function SplashScreen() {
-  const [walk, setWalk] = useState(false);
-  const [showNames, setShowNames] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    const walkTimer = setTimeout(() => setWalk(true), 100);
-    const nameTimer = setTimeout(() => setShowNames(true), 1600);
-    const redirectTimer = setTimeout(() => {
-      router.push("/welcome");
-    }, 5000);
-
-    return () => {
-      clearTimeout(walkTimer);
-      clearTimeout(nameTimer);
-      clearTimeout(redirectTimer);
-    };
-  }, [router]);
-
-  const nameParts = AppConfig.coupleNames.split("&");
-  const name1 = nameParts[0]?.trim() || "Saman";
-  const name2 = nameParts[1]?.trim() || "Lilly";
-
+export default function MXTechLandingPage() {
   return (
-    <div className="min-h-screen bg-pink-50 flex flex-col items-center justify-center font-sans overflow-hidden">
-      <div className="relative w-full max-w-sm h-72 flex items-center justify-center">
-        
-        {/* මනාලයාගේ පින්තූරය */}
-        <div className={`absolute left-0 top-16 w-32 h-32 flex items-center justify-center transition-all duration-[1500ms] ease-out ${walk ? "translate-x-12 opacity-100" : "-translate-x-16 opacity-0"}`}>
-          <img src="/groom.png" alt="Groom" className={`w-full h-full object-contain transition-opacity duration-1000 ${showNames ? "opacity-0" : "opacity-100"}`} />
+    <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Awesome background glow */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-600 rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse"></div>
+      
+      <div className="z-10 text-center max-w-2xl">
+        <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-purple-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-8 shadow-2xl transform rotate-12">
+          🚀
         </div>
-
-        {/* මනාලියගේ පින්තූරය */}
-        <div className={`absolute right-0 bottom-16 w-32 h-32 flex items-center justify-center transition-all duration-[1500ms] ease-out ${walk ? "-translate-x-12 opacity-100" : "translate-x-16 opacity-0"}`}>
-          <img src="/bride.png" alt="Bride" className={`w-full h-full object-contain transition-opacity duration-1000 ${showNames ? "opacity-0" : "opacity-100"}`} />
-        </div>
-
-        {/* නම් සහ & සලකුණ */}
-        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-1000 ease-in-out ${showNames ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}>
-          <div className="flex flex-col w-full max-w-[260px] z-10">
-            <div className="self-start text-left pl-2 mb-2">
-              <span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name1}</span>
-            </div>
-            <div className="self-center my-1">
-              <span className="text-[3.5rem] text-pink-500 italic drop-shadow-sm leading-none">&</span>
-            </div>
-            <div className="self-end text-right pr-2 mt-2">
-              <span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name2}</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div className={`mt-12 transition-all duration-1000 ${showNames ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}>
-        <p className="text-xl text-gray-500 font-bold tracking-[0.35em] bg-white/40 px-4 py-1.5 rounded-full shadow-sm border border-pink-100/50">
-          {AppConfig.weddingDate}
+        <h1 className="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight">
+          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500">MX TECH</span>
+        </h1>
+        <p className="text-gray-300 text-lg md:text-xl mb-10 leading-relaxed">
+          The ultimate premium Digital Wedding Gallery & Guestbook platform. 
+          Capture memories instantly, share love effortlessly.
         </p>
+        
+        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 p-6 rounded-3xl mb-8">
+          <p className="text-sm text-gray-400 mb-2 uppercase tracking-widest font-bold">To access a wedding gallery:</p>
+          <p className="text-pink-400 font-mono">Please use the specific link provided by the couple.</p>
+          <p className="text-xs text-gray-500 mt-2">(e.g., mxtech.com/saman-lilly)</p>
+        </div>
+
+        <button onClick={() => alert("WhatsApp/Call: 0785508792")} className="bg-white text-gray-900 px-8 py-4 rounded-full font-bold shadow-lg hover:scale-105 transition-transform">
+          Start Your Project (Contact Us)
+        </button>
       </div>
     </div>
   );
