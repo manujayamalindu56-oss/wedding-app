@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useParams } from 'next/navigation'; // <-- URL එකෙන් wedding නම ගන්න
 import { supabase } from "@/lib/supabase"; 
-import { AppConfig } from "@/lib/config";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import imageCompression from 'browser-image-compression';
@@ -34,7 +34,10 @@ async function compressImage(file: File): Promise<File> {
   });
 }
 
-const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
+// -------------------------------------------------------------
+// Admin Splash Screen Component
+// -------------------------------------------------------------
+const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate }: { onFinish: () => void, coupleNames: string, weddingDate: string }) => {
   const [walk, setWalk] = useState(false);
   const [showNames, setShowNames] = useState(false);
 
@@ -43,9 +46,9 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
     const nameTimer = setTimeout(() => setShowNames(true), 1600);
     const redirectTimer = setTimeout(() => onFinish(), 5000);
     return () => { clearTimeout(walkTimer); clearTimeout(nameTimer); clearTimeout(redirectTimer); };
-  }, []);
+  }, [onFinish]);
 
-  const nameParts = AppConfig.coupleNames.split("&");
+  const nameParts = coupleNames ? coupleNames.split("&") : ["Groom", "Bride"];
   const name1 = nameParts[0]?.trim() || "Saman";
   const name2 = nameParts[1]?.trim() || "Lilly";
 
@@ -74,16 +77,19 @@ const AdminSplashScreen = ({ onFinish }: { onFinish: () => void }) => {
       </div>
       <div className={`mt-12 transition-all duration-1000 ${showNames ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}>
         <p className="text-xl text-gray-500 font-bold tracking-[0.35em] bg-white/40 px-4 py-1.5 rounded-full shadow-sm border border-pink-100/50">
-          {AppConfig.weddingDate}
+          {weddingDate || "Wedding Date"}
         </p>
       </div>
     </div>
   );
 };
 
-function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
+// -------------------------------------------------------------
+// Admin Greeting Component
+// -------------------------------------------------------------
+function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin, hostName }: any) {
   const [showHeart, setShowHeart] = useState(false);
-  const isHostMsg = greeting.user_name === AppConfig.hostName;
+  const isHostMsg = greeting.user_name === hostName;
 
   const handleDoubleTap = async (e: any) => {
     e.preventDefault();
@@ -130,7 +136,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
 
       {greeting.liked_by_host && (
         <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">
-          Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
+          Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {hostName}</span>
         </div>
       )}
     </div>
@@ -138,7 +144,7 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin }: any) {
 }
 
 function AdminFeedPost({ 
-  post, onDeletePhoto, onDeleteFullPost, onDeleteComment, onAddComment, onUpdate, onPinPost
+  post, onDeletePhoto, onDeleteFullPost, onDeleteComment, onAddComment, onUpdate, onPinPost, hostName, weddingSlug
 }: { 
   post: any, 
   onDeletePhoto: (postId: string, photoIndex: number, currentUrls: string[]) => void, 
@@ -146,7 +152,9 @@ function AdminFeedPost({
   onDeleteComment: (commentId: string) => void,
   onAddComment: (postId: string, text: string) => void,
   onUpdate: () => void,
-  onPinPost: (postId: string, currentPinStatus: boolean) => void
+  onPinPost: (postId: string, currentPinStatus: boolean) => void,
+  hostName: string,
+  weddingSlug: string
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
@@ -175,7 +183,7 @@ function AdminFeedPost({
     setTimeout(() => setShowHeart(false), 800);
   };
 
-  const isHostPost = post.user_name === AppConfig.hostName;
+  const isHostPost = post.user_name === hostName;
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : 'border-pink-100'}`}>
@@ -230,7 +238,7 @@ function AdminFeedPost({
         </div>
         {post.liked_by_host && (
           <div className="text-xs text-gray-600 font-medium flex items-center gap-1">
-            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
+            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {hostName}</span>
           </div>
         )}
       </div>
@@ -245,7 +253,7 @@ function AdminFeedPost({
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
               {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
               {(post.comments || []).map((c: any) => {
-                const isHostComment = c.user_name === AppConfig.hostName;
+                const isHostComment = c.user_name === hostName;
                 return (
                   <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? 'bg-pink-50 border-pink-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex items-start gap-2.5">
@@ -263,7 +271,7 @@ function AdminFeedPost({
               })}
             </div>
             <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-gray-100">
-              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={`Reply as ${AppConfig.hostName}...`} className="flex-1 border border-pink-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/50 text-gray-800" />
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={`Reply as ${hostName}...`} className="flex-1 border border-pink-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/50 text-gray-800" />
               <button type="submit" className="bg-pink-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-pink-600 transition shadow-sm">Reply</button>
             </form>
           </div>
@@ -273,7 +281,16 @@ function AdminFeedPost({
   );
 }
 
+// -------------------------------------------------------------
+// Main Admin Page
+// -------------------------------------------------------------
 export default function AdminPage() {
+  const params = useParams();
+  const weddingSlug = params.wedding as string;
+
+  const [weddingInfo, setWeddingInfo] = useState<any>(null);
+  const [isValidWedding, setIsValidWedding] = useState<boolean | null>(null);
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -316,31 +333,47 @@ export default function AdminPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
+  // Fetch initial wedding setup
   useEffect(() => {
-    // Custom song link
-    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
-    audioRef.current.loop = true;
-    return () => {
-      if (audioRef.current) audioRef.current.pause();
-    };
-  }, []);
+    if (!weddingSlug) return;
+    
+    const fetchInitialData = async () => {
+      const { data, error } = await supabase.from('weddings').select('*').eq('slug', weddingSlug).single();
+      
+      if (error || !data) {
+        setIsValidWedding(false);
+        setIsAuthChecking(false);
+        return;
+      }
+      
+      setWeddingInfo(data);
+      setIsUploadBlocked(data.uploads_blocked);
+      setIsGuestbookBlocked(data.guestbook_blocked);
+      setIsValidWedding(true);
 
-  useEffect(() => {
-    const authStatus = localStorage.getItem("isAdminAuth");
-    if (authStatus === "true") {
-      setIsAuthenticated(true);
-      setShowSplash(true); 
-    }
-    setIsAuthChecking(false);
-  }, []);
+      if (data.music_url) {
+        audioRef.current = new Audio(data.music_url);
+        audioRef.current.loop = true;
+      }
+
+      // Check auth specific to this wedding
+      const authStatus = localStorage.getItem(`isAdminAuth_${weddingSlug}`);
+      if (authStatus === "true") {
+        setIsAuthenticated(true);
+        setShowSplash(true); 
+      }
+      setIsAuthChecking(false);
+    };
+    fetchInitialData();
+  }, [weddingSlug]);
 
   const fetchData = async (isSilent = false) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isValidWedding) return;
     if (!isSilent) setIsLoading(true);
     
-    const { data: postsData } = await supabase.from('posts').select('*, comments(*)').order('created_at', { ascending: false });
-    const { data: greetingsData } = await supabase.from('greetings').select('*').order('created_at', { ascending: false });
-    const { data: settingsData } = await supabase.from('app_settings').select('*').eq('id', 1).single();
+    const { data: postsData } = await supabase.from('posts').select('*, comments(*)').eq('wedding_slug', weddingSlug).order('created_at', { ascending: false });
+    const { data: greetingsData } = await supabase.from('greetings').select('*').eq('wedding_slug', weddingSlug).order('created_at', { ascending: false });
+    const { data: settingsData } = await supabase.from('weddings').select('*').eq('slug', weddingSlug).single();
 
     if (postsData) {
       const sortedPosts = postsData.sort((a, b) => {
@@ -368,14 +401,14 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated && !showSplash) {
+    if (isAuthenticated && !showSplash && isValidWedding) {
       fetchData();
       const interval = setInterval(() => fetchData(true), 5000);
       const handleVisibilityChange = () => { if (document.visibilityState === 'visible') fetchData(true); };
       document.addEventListener("visibilitychange", handleVisibilityChange);
       return () => { clearInterval(interval); document.removeEventListener("visibilitychange", handleVisibilityChange); };
     }
-  }, [isAuthenticated, showSplash]);
+  }, [isAuthenticated, showSplash, isValidWedding]);
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
@@ -395,10 +428,10 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === AppConfig.adminPassword) {
+    if (passwordInput === weddingInfo.host_password) {
       setIsAuthenticated(true);
       setShowSplash(true); 
-      localStorage.setItem("isAdminAuth", "true"); 
+      localStorage.setItem(`isAdminAuth_${weddingSlug}`, "true"); 
     } else {
       showToast("මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.", "error");
       setPasswordInput("");
@@ -409,7 +442,7 @@ export default function AdminPage() {
     setIsHostPanelOpen(false); 
     setIsAuthenticated(false);
     setShowSplash(false);
-    localStorage.removeItem("isAdminAuth");
+    localStorage.removeItem(`isAdminAuth_${weddingSlug}`);
     setPosts([]);
     setGreetings([]);
   };
@@ -417,13 +450,13 @@ export default function AdminPage() {
   const toggleUploadBlock = async () => {
     const newVal = !isUploadBlocked;
     setIsUploadBlocked(newVal);
-    await supabase.from('app_settings').update({ uploads_blocked: newVal }).eq('id', 1);
+    await supabase.from('weddings').update({ uploads_blocked: newVal }).eq('slug', weddingSlug);
   };
 
   const toggleGuestbookBlock = async () => {
     const newVal = !isGuestbookBlocked;
     setIsGuestbookBlocked(newVal);
-    await supabase.from('app_settings').update({ guestbook_blocked: newVal }).eq('id', 1);
+    await supabase.from('weddings').update({ guestbook_blocked: newVal }).eq('slug', weddingSlug);
   };
 
   const toggleSlideshow = async (postId: string, url: string, currentSelected: string[]) => {
@@ -476,7 +509,11 @@ export default function AdminPage() {
         setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
 
-      await supabase.from('posts').insert([{ user_name: AppConfig.hostName, urls: uploadedUrls }]);
+      await supabase.from('posts').insert([{ 
+        wedding_slug: weddingSlug,
+        user_name: weddingInfo.couple_names, 
+        urls: uploadedUrls 
+      }]);
       setUploading(false);
       fetchData(true);
       showToast("Photos uploaded successfully! 📸", "success");
@@ -560,7 +597,13 @@ export default function AdminPage() {
   };
 
   const handleAddComment = async (postId: string, text: string) => {
-    await supabase.from('comments').insert([{ post_id: postId, user_name: AppConfig.hostName, text: text, is_admin: true }]);
+    await supabase.from('comments').insert([{ 
+      post_id: postId, 
+      user_name: weddingInfo.couple_names, 
+      text: text, 
+      is_admin: true,
+      wedding_slug: weddingSlug
+    }]);
     fetchData(true);
     showToast("Comment added.", "success");
   };
@@ -568,7 +611,12 @@ export default function AdminPage() {
   const handleAddHostGreeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newGreetingComment.trim() === "") return;
-    await supabase.from('greetings').insert([{ user_name: AppConfig.hostName, type: "text", content: newGreetingComment }]);
+    await supabase.from('greetings').insert([{ 
+      wedding_slug: weddingSlug,
+      user_name: weddingInfo.couple_names, 
+      type: "text", 
+      content: newGreetingComment 
+    }]);
     setNewGreetingComment("");
     fetchData(true);
     showToast("Posted successfully.", "success");
@@ -615,7 +663,7 @@ export default function AdminPage() {
       showToast("බාගත කිරීමට සුබපැතුම් නොමැත!", "error");
       return;
     }
-    let textContent = `Guestbook Wishes - ${AppConfig.coupleNames}\n\n`;
+    let textContent = `Guestbook Wishes - ${weddingInfo.couple_names}\n\n`;
     greetings.filter(g => g.type === 'text').forEach(g => {
       textContent += `Name: ${g.user_name}\nWish: "${g.content}"\n---\n`;
     });
@@ -624,7 +672,21 @@ export default function AdminPage() {
     showToast("සුබපැතුම් ලැයිස්තුව සාර්ථකව බාගත කරන ලදී!", "success");
   };
 
-  if (isAuthChecking) return <div className="min-h-screen bg-pink-50"></div>;
+  if (isValidWedding === false) {
+    return (
+      <div className="min-h-screen bg-pink-50 flex items-center justify-center font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
+          <div className="text-6xl mb-4">💔</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2>
+          <p className="text-gray-500 text-sm">කරුණාකර නිවැරදි ලින්ක් එක භාවිතා කරන්න.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthChecking || !weddingInfo) {
+    return <div className="min-h-screen bg-pink-50 flex items-center justify-center"><p className="text-pink-500 font-bold animate-pulse">Loading Magic...</p></div>;
+  }
 
   if (!isAuthenticated) {
     return (
@@ -633,7 +695,7 @@ export default function AdminPage() {
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">👑</div>
             <h2 className="text-xl font-bold text-gray-800">Admin Login</h2>
-            <p className="text-xs text-gray-500 mt-1">කරුණාකර මුරපදය ඇතුළත් කරන්න</p>
+            <p className="text-xs text-gray-500 mt-1">{weddingInfo.couple_names}</p>
           </div>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="Password..." className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center tracking-widest focus:outline-none focus:border-pink-500 text-gray-800" />
@@ -641,7 +703,6 @@ export default function AdminPage() {
           </form>
         </div>
         
-        {/* Custom Toast inside Login Screen too */}
         {toast && (
           <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${
             toast.type === 'success' ? 'bg-green-500 text-white' : 
@@ -656,7 +717,7 @@ export default function AdminPage() {
   }
 
   if (showSplash) {
-    return <AdminSplashScreen onFinish={() => setShowSplash(false)} />;
+    return <AdminSplashScreen onFinish={() => setShowSplash(false)} coupleNames={weddingInfo.couple_names} weddingDate={weddingInfo.wedding_date} />;
   }
 
   const totalPhotos = posts.reduce((sum, post) => sum + post.urls.length, 0);
@@ -668,7 +729,6 @@ export default function AdminPage() {
         @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
         .animate-insta-heart { animation: instaHeart 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
-        /* 4 Different Cinematic Animations */
         @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } }
         @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } }
         @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } }
@@ -687,7 +747,7 @@ export default function AdminPage() {
         </button>
 
         <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-[60%]">
-          <h2 className="text-gray-800 font-extrabold text-lg leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
+          <h2 className="text-gray-800 font-extrabold text-lg leading-tight mt-1 truncate w-full">{weddingInfo.couple_names}</h2>
         </div>
 
         <div className="w-9 z-10"></div> 
@@ -751,10 +811,11 @@ export default function AdminPage() {
               <div>
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Share Gallery</h3>
                 <button onClick={() => {
-                  navigator.clipboard.writeText(window.location.origin);
-                  showToast("Link copied to clipboard! 🔗", "success");
+                  const currentUrl = window.location.href.split('/admin')[0] + '/gallery';
+                  navigator.clipboard.writeText(currentUrl);
+                  showToast("Guest Link copied to clipboard! 🔗", "success");
                 }} className="w-full bg-pink-50 border border-pink-200 text-pink-600 font-bold py-3.5 rounded-xl shadow-sm hover:bg-pink-100 transition text-sm flex items-center justify-center gap-2">
-                  🔗 Copy App Link
+                  🔗 Copy Guest Link
                 </button>
               </div>
 
@@ -789,7 +850,7 @@ export default function AdminPage() {
       </div>
 
       <div className="px-2 max-w-lg mx-auto">
-        {isLoading ? (
+        {isLoading && posts.length === 0 ? (
           <div className="flex justify-center items-center h-40"><p className="text-pink-500 font-bold animate-pulse">Loading Admin Data...</p></div>
         ) : activeTab === "album" ? (
           <div className="w-full animate-fade-in-up">
@@ -845,14 +906,14 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-6">
-                {posts.map((post) => <AdminFeedPost key={post.id} post={post} onDeletePhoto={handleDeletePhoto} onDeleteFullPost={handleDeleteFullPost} onDeleteComment={handleDeleteComment} onAddComment={handleAddComment} onUpdate={() => fetchData(true)} onPinPost={handlePinPost} />)}
+                {posts.map((post) => <AdminFeedPost key={post.id} post={post} onDeletePhoto={handleDeletePhoto} onDeleteFullPost={handleDeleteFullPost} onDeleteComment={handleDeleteComment} onAddComment={handleAddComment} onUpdate={() => fetchData(true)} onPinPost={handlePinPost} hostName={weddingInfo.couple_names} weddingSlug={weddingSlug} />)}
               </div>
             )}
           </div>
         ) : (
           <div className="w-full animate-fade-in-up">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-pink-200 mb-6">
-              <h4 className="font-bold text-gray-700 text-xs mb-2">Post as {AppConfig.hostName}</h4>
+              <h4 className="font-bold text-gray-700 text-xs mb-2">Post as {weddingInfo.couple_names}</h4>
               <form onSubmit={handleAddHostGreeting} className="flex gap-2">
                 <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} placeholder="ස්තුති පණිවිඩයක් ලියන්න..." className="flex-1 border border-pink-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-pink-500 bg-pink-50/40 text-gray-800" />
                 <button type="submit" className="bg-pink-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-pink-600 transition shadow-sm">Post</button>
@@ -862,7 +923,7 @@ export default function AdminPage() {
             <h3 className="font-bold text-gray-700 text-sm mb-3 px-2">Guestbook Control ({greetings.length})</h3>
             <div className="flex flex-col gap-4">
               {greetings.map((greeting) => (
-                <AdminGreetingItem key={greeting.id} greeting={greeting} onDelete={handleDeleteGreeting} onUpdate={() => fetchData(true)} onPin={handlePinGreeting} />
+                <AdminGreetingItem key={greeting.id} greeting={greeting} onDelete={handleDeleteGreeting} onUpdate={() => fetchData(true)} onPin={handlePinGreeting} hostName={weddingInfo.couple_names} />
               ))}
             </div>
           </div>
@@ -877,7 +938,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-gray-800 text-lg">Post as {AppConfig.hostName}</h3>
+              <h3 className="font-bold text-gray-800 text-lg">Post as {weddingInfo.couple_names}</h3>
               <button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-2">
@@ -897,6 +958,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Modern Progress Bar for Uploading */}
       {uploading && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">

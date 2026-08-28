@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useParams } from 'next/navigation'; // <-- URL එකෙන් wedding නම ගන්න
 import { supabase } from "@/lib/supabase";
-import { AppConfig } from "@/lib/config";
 import imageCompression from 'browser-image-compression';
 
 async function compressImage(file: File): Promise<File> {
@@ -41,7 +41,10 @@ async function compressImage(file: File): Promise<File> {
   });
 }
 
-const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
+// -------------------------------------------------------------
+// Guest Feed Post Component
+// -------------------------------------------------------------
+const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNames }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -55,7 +58,12 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !currentUserName) return;
-    await supabase.from('comments').insert([{ post_id: post.id, user_name: currentUserName, text: newComment }]);
+    await supabase.from('comments').insert([{ 
+      post_id: post.id, 
+      user_name: currentUserName, 
+      text: newComment,
+      wedding_slug: weddingSlug 
+    }]);
     setNewComment("");
     onRefresh();
   };
@@ -74,7 +82,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
     setTimeout(() => setShowHeart(false), 1000); 
   };
 
-  const isHostPost = post.user_name === AppConfig.hostName;
+  const isHostPost = post.user_name === coupleNames;
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : 'border-pink-100'}`}>
@@ -126,7 +134,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
         </div>
         {post.liked_by_host && (
           <div className="text-xs text-gray-600 font-medium flex items-center gap-1">
-            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
+            Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {coupleNames}</span>
           </div>
         )}
       </div>
@@ -142,7 +150,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
               {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
               {(post.comments || []).map((c: any) => {
-                const isHostComment = c.user_name === AppConfig.hostName;
+                const isHostComment = c.user_name === coupleNames;
                 return (
                   <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? 'bg-pink-50 border-pink-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex items-start gap-2.5">
@@ -170,7 +178,16 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh }: any) => {
   );
 };
 
+// -------------------------------------------------------------
+// Main Gallery Page
+// -------------------------------------------------------------
 export default function GalleryPage() {
+  const params = useParams();
+  const weddingSlug = params.wedding as string;
+
+  const [weddingInfo, setWeddingInfo] = useState<any>(null);
+  const [isValidWedding, setIsValidWedding] = useState<boolean | null>(null);
+
   const [activeTab, setActiveTab] = useState("feed");
   const [viewType, setViewType] = useState("feed"); 
   const [posts, setPosts] = useState<any[]>([]);
@@ -216,26 +233,43 @@ export default function GalleryPage() {
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
 
+  // Fetch initial wedding setup
   useEffect(() => {
-    // Custom song link
-    audioRef.current = new Audio("https://yfcigymhxvkcgxgmifyd.supabase.co/storage/v1/object/public/wedding-photos/wedding-song..mp3");
-    audioRef.current.loop = true;
-    return () => {
-      if (audioRef.current) audioRef.current.pause();
+    if (!weddingSlug) return;
+    
+    const fetchInitialData = async () => {
+      const { data, error } = await supabase.from('weddings').select('*').eq('slug', weddingSlug).single();
+      
+      if (error || !data) {
+        setIsValidWedding(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      setWeddingInfo(data);
+      setIsUploadBlocked(data.uploads_blocked);
+      setIsGuestbookBlocked(data.guestbook_blocked);
+      setIsValidWedding(true);
+
+      if (data.music_url) {
+        audioRef.current = new Audio(data.music_url);
+        audioRef.current.loop = true;
+      }
     };
-  }, []);
+    fetchInitialData();
+  }, [weddingSlug]);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("wedding_guest_name");
+    const savedName = localStorage.getItem(`wedding_guest_name_${weddingSlug}`);
     if (savedName) {
       setUserName(savedName);
     }
-  }, []);
+  }, [weddingSlug]);
 
   const saveName = () => {
     if (tempName.trim()) {
       setUserName(tempName);
-      localStorage.setItem("wedding_guest_name", tempName);
+      localStorage.setItem(`wedding_guest_name_${weddingSlug}`, tempName);
       setIsEditNameOpen(false);
     } else {
       showToast("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.", "error");
@@ -243,10 +277,12 @@ export default function GalleryPage() {
   };
 
   const fetchData = async (isSilent = false) => {
+    if (!isValidWedding) return;
     if (!isSilent) setIsLoading(true);
-    const { data: postsData } = await supabase.from('posts').select('*, comments(*)').order('created_at', { ascending: false });
-    const { data: greetingsData } = await supabase.from('greetings').select('*').order('created_at', { ascending: false });
-    const { data: settingsData } = await supabase.from('app_settings').select('*').eq('id', 1).single();
+    
+    const { data: postsData } = await supabase.from('posts').select('*, comments(*)').eq('wedding_slug', weddingSlug).order('created_at', { ascending: false });
+    const { data: greetingsData } = await supabase.from('greetings').select('*').eq('wedding_slug', weddingSlug).order('created_at', { ascending: false });
+    const { data: settingsData } = await supabase.from('weddings').select('*').eq('slug', weddingSlug).single();
     
     if (postsData) {
       const sortedPosts = postsData.sort((a, b) => {
@@ -274,10 +310,12 @@ export default function GalleryPage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => fetchData(true), 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (isValidWedding) {
+      fetchData();
+      const interval = setInterval(() => fetchData(true), 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isValidWedding]);
 
   const slideshowUrls = posts.flatMap(p => p.selected_photos || []);
 
@@ -315,11 +353,7 @@ export default function GalleryPage() {
 
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
-        const compressionOptions = {
-          maxSizeMB: 1, 
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        };
+        const compressionOptions = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
         const compressedFile = await imageCompression(files[i], compressionOptions);
         
         completedSteps++;
@@ -339,7 +373,12 @@ export default function GalleryPage() {
         setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
 
-      await supabase.from('posts').insert([{ user_name: userName, urls: uploadedUrls, likes: 0 }]);
+      await supabase.from('posts').insert([{ 
+        wedding_slug: weddingSlug, 
+        user_name: userName, 
+        urls: uploadedUrls, 
+        likes: 0 
+      }]);
       setUploading(false);
       fetchData(true);
       showToast("Photos uploaded successfully! 📸", "success");
@@ -407,6 +446,7 @@ export default function GalleryPage() {
       }
 
       await supabase.from('greetings').insert([{
+        wedding_slug: weddingSlug,
         user_name: userName,
         type: type,
         content: type === 'text' ? greetingText : contentUrl
@@ -428,13 +468,28 @@ export default function GalleryPage() {
     }
   };
 
+  if (isValidWedding === false) {
+    return (
+      <div className="min-h-screen bg-pink-50 flex items-center justify-center font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
+          <div className="text-6xl mb-4">💔</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2>
+          <p className="text-gray-500 text-sm">කරුණාකර නිවැරදි ලින්ක් එක භාවිතා කරන්න.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || !weddingInfo) {
+    return <div className="min-h-screen bg-pink-50 flex items-center justify-center font-sans"><p className="text-pink-500 font-bold animate-pulse">Loading Magic...</p></div>;
+  }
+
   return (
     <div className="min-h-screen bg-pink-50 font-sans pb-28 relative">
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
         .animate-insta-heart { animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
-        /* 4 Different Cinematic Animations */
         @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } }
         @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } }
         @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } }
@@ -454,7 +509,7 @@ export default function GalleryPage() {
         </div>
         
         <div className="absolute left-1/2 transform -translate-x-1/2 text-center pointer-events-none flex flex-col items-center w-3/5">
-          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1 truncate w-full">{AppConfig.coupleNames}</h2>
+          <h2 className="text-gray-800 font-extrabold text-xl leading-tight mt-1 truncate w-full">{weddingInfo.couple_names}</h2>
         </div>
         
         <button onClick={() => setIsInfoOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition shadow-inner z-10 text-lg border border-blue-100" title="Info">
@@ -470,9 +525,7 @@ export default function GalleryPage() {
       </div>
 
       <div className="px-2 max-w-lg mx-auto">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-40"><p className="text-pink-500 font-bold animate-pulse">Loading Gallery...</p></div>
-        ) : activeTab === "feed" ? (
+        {activeTab === "feed" ? (
           <div>
             <div className="flex justify-between items-center mb-3 px-2">
               <h3 className="font-bold text-gray-700 text-sm">Gallery</h3>
@@ -506,7 +559,7 @@ export default function GalleryPage() {
             ) : (
               <div className="flex flex-col gap-6">
                 {posts.map((post) => (
-                  <GuestFeedPost key={post.id} post={post} currentUserName={userName} onRefresh={() => fetchData(true)} />
+                  <GuestFeedPost key={post.id} post={post} currentUserName={userName} onRefresh={() => fetchData(true)} weddingSlug={weddingSlug} coupleNames={weddingInfo.couple_names} />
                 ))}
               </div>
             )}
@@ -547,7 +600,7 @@ export default function GalleryPage() {
 
             <div className="flex flex-col gap-3">
               {greetings.map((greeting) => {
-                const isHostMsg = greeting.user_name === AppConfig.hostName;
+                const isHostMsg = greeting.user_name === weddingInfo.couple_names;
                 return (
                   <div key={greeting.id} className={`bg-white p-4 rounded-2xl shadow-sm border ${greeting.is_pinned ? 'border-yellow-300 bg-yellow-50/20' : (isHostMsg ? 'border-pink-300 bg-pink-50/30' : 'border-pink-100')} relative`}>
                     <div className="flex items-center gap-2 mb-3">
@@ -565,7 +618,7 @@ export default function GalleryPage() {
                     
                     {greeting.liked_by_host && (
                       <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">
-                        Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {AppConfig.hostName}</span>
+                        Liked by <span className="font-bold text-pink-600">👩‍❤️‍👨 {weddingInfo.couple_names}</span>
                       </div>
                     )}
                   </div>
@@ -647,7 +700,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Modern Progress Bar for Uploading */}
       {uploading && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
@@ -682,7 +734,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* Cinematic Memory / Slideshow Modal */}
       {isProjectorOpen && (
         <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center backdrop-blur-2xl">
           <button onClick={() => {
@@ -751,7 +802,6 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {/* --- Custom Premium Toast Notification --- */}
       {toast && (
         <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${
           toast.type === 'success' ? 'bg-green-500 text-white' : 
