@@ -46,6 +46,29 @@ async function compressImage(file: File): Promise<File> {
 }
 
 // -------------------------------------------------------------
+// Smooth Image Component (For Loading Animation)
+// -------------------------------------------------------------
+const SmoothImage = ({ src, alt, className }: { src: string, alt: string, className: string }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  return (
+    <div className={`relative ${className} overflow-hidden bg-gray-100`}>
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse">
+          <span className="text-gray-400 text-3xl opacity-50">🖼️</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        className={`w-full h-full object-cover transition-opacity duration-700 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
 // Admin Splash Screen
 // -------------------------------------------------------------
 const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) => {
@@ -140,15 +163,19 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [showHeart, setShowHeart] = useState(false);
+  const isProcessingLike = useRef(false);
 
   const handleScroll = (e: any) => { setActiveIndex(Math.round(e.target.scrollLeft / e.target.clientWidth)); };
   const handleCommentSubmit = (e: React.FormEvent) => { e.preventDefault(); if (newComment.trim() === "") return; onAddComment(post.id, newComment); setNewComment(""); };
 
   const handleHostLike = async () => {
+    if (isProcessingLike.current) return;
+    isProcessingLike.current = true;
     const currentlyLiked = post.liked_by_host || false;
     const newLikes = currentlyLiked ? Math.max(0, (post.likes || 1) - 1) : (post.likes || 0) + 1;
     await supabase.from('posts').update({ likes: newLikes, liked_by_host: !currentlyLiked }).eq('id', post.id);
     onUpdate();
+    setTimeout(() => { isProcessingLike.current = false; }, 1000);
   };
 
   const handleDoubleTap = () => { if (!post.liked_by_host) handleHostLike(); setShowHeart(true); setTimeout(() => setShowHeart(false), 800); };
@@ -175,8 +202,8 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
       <div className="relative w-full group cursor-pointer select-none" onDoubleClick={handleDoubleTap}>
         <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
           {post.urls.map((url: string, index: number) => (
-            <div key={index} className="w-full h-auto max-h-[500px] flex-shrink-0 snap-center relative">
-              <img src={url} alt="Wedding" className="w-full h-full object-cover max-h-[500px] pointer-events-none" />
+            <div key={index} className="w-full h-[400px] sm:h-[500px] flex-shrink-0 snap-center relative">
+              <SmoothImage src={url} alt="Wedding" className="w-full h-full pointer-events-none" />
               <button onClick={(e) => { e.stopPropagation(); onDeletePhoto(post.id, index, post.urls); }} className="absolute top-3 right-3 bg-white/90 text-gray-600 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border border-gray-200 transition-all flex items-center gap-1 backdrop-blur-sm z-40">🗑️ Remove</button>
             </div>
           ))}
@@ -366,7 +393,6 @@ export default function AdminPage() {
   const toggleUploadBlock = async () => { const newVal = !isUploadBlocked; setIsUploadBlocked(newVal); await supabase.from('weddings').update({ uploads_blocked: newVal }).eq('slug', weddingSlug); };
   const toggleGuestbookBlock = async () => { const newVal = !isGuestbookBlocked; setIsGuestbookBlocked(newVal); await supabase.from('weddings').update({ guestbook_blocked: newVal }).eq('slug', weddingSlug); };
 
-  // --- අලුත් Theme Change එක ---
   const handleThemeChange = async (color: string) => {
     setSelectedThemeColor(color);
     setActiveTheme(THEMES[color] || THEMES.pink);
@@ -374,7 +400,6 @@ export default function AdminPage() {
     showToast("Theme updated successfully! 🎨", "success");
   };
 
-  // --- අලුත් QR Download එක ---
   const downloadQRCode = async () => {
     const url = `${window.location.origin}/${weddingSlug}/gallery`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(url)}`;
@@ -402,6 +427,14 @@ export default function AdminPage() {
   const handleHostUpload = async (e: any) => {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
+
+    // --- File Type Validation ---
+    const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
+    if (invalidFiles.length > 0) {
+      showToast("කරුණාකර ඡායාරූප (JPG/PNG) පමණක් තෝරන්න!", "error");
+      return;
+    }
+
     setUploading(true); setUploadProgressPercent(0); setIsUploadOpen(false);
 
     try {
@@ -410,7 +443,10 @@ export default function AdminPage() {
       let completedSteps = 0;
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
-        const compressedFile = await imageCompression(files[i], { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+        
+        // --- 0.5MB Compression with higher Quality ---
+        const compressedFile = await imageCompression(files[i], { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 });
+        
         completedSteps++; setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
 
         setUploadProgressText(`Uploading Image ${i+1}/${files.length}...`);
@@ -435,26 +471,26 @@ export default function AdminPage() {
     }});
   };
 
-const handleDeleteFullPost = (postId: string) => { 
-  setConfirmDialog({ 
-    message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?", 
-    onConfirm: async () => { 
-      try {
-        const { error } = await supabase.from('posts').delete().eq('id', postId);
-        if (error) throw error;
-        
-        // UI එකෙන් එහෙම්ම අයින් කරන්න (Speed up)
-        setPosts(prev => prev.filter(p => p.id !== postId));
-        showToast("Post එක මකා දමන ලදී.", "success"); 
-      } catch (err: any) {
-        console.error("Delete Error:", err);
-        showToast(`මකාදැමීම අසාර්ථකයි: ${err.message || 'Unknown error'}`, "error");
-      } finally {
-        setConfirmDialog(null); 
+  const handleDeleteFullPost = (postId: string) => { 
+    setConfirmDialog({ 
+      message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?", 
+      onConfirm: async () => { 
+        try {
+          const { error } = await supabase.from('posts').delete().eq('id', postId);
+          if (error) throw error;
+          
+          setPosts(prev => prev.filter(p => p.id !== postId));
+          showToast("Post එක මකා දමන ලදී.", "success"); 
+        } catch (err: any) {
+          console.error("Delete Error:", err);
+          showToast(`මකාදැමීම අසාර්ථකයි: ${err.message || 'Unknown error'}`, "error");
+        } finally {
+          setConfirmDialog(null); 
+        }
       }
-    }
-  }); 
-};
+    }); 
+  };
+  
   const handleDeleteComment = (commentId: string) => { setConfirmDialog({ message: "මෙම කමෙන්ට් එක මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('comments').delete().eq('id', commentId); fetchData(true); showToast("කමෙන්ට් එක මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
   const handleDeleteGreeting = (id: string) => { setConfirmDialog({ message: "මෙම සුබපැතුම මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('greetings').delete().eq('id', id); fetchData(true); showToast("සුබපැතුම මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
 
@@ -642,8 +678,8 @@ const handleDeleteFullPost = (postId: string) => {
                 {posts.flatMap(post => post.urls.map((url: string, idx: number) => ({ post, url, idx }))).map((item, index) => {
                   const isSelected = (item.post.selected_photos || []).includes(item.url);
                   return (
-                    <div key={index} className="relative group overflow-hidden rounded-lg cursor-pointer bg-gray-100" onClick={() => setFullscreenData({ url: item.url, post: item.post, idx: item.idx })}>
-                      <img src={item.url} alt="Wedding" className={`aspect-square object-cover w-full h-full transition-all ${isSelected ? 'opacity-90' : 'hover:opacity-80'}`} />
+                    <div key={index} className="relative group overflow-hidden rounded-lg cursor-pointer bg-gray-100 aspect-square" onClick={() => setFullscreenData({ url: item.url, post: item.post, idx: item.idx })}>
+                      <SmoothImage src={item.url} alt="Wedding" className={`w-full h-full transition-all ${isSelected ? 'opacity-90' : 'group-hover:opacity-80'}`} />
                       {isSelected && <div className="absolute top-1 left-1 bg-white/90 rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-md"><span className="text-rose-500 leading-none mt-0.5">♥</span></div>}
                     </div>
                   );
@@ -660,7 +696,7 @@ const handleDeleteFullPost = (postId: string) => {
             <div className={`bg-white p-4 rounded-2xl shadow-sm border ${activeTheme.border} mb-6`}>
               <h4 className="font-bold text-gray-700 text-xs mb-2">Post as Mr & Mrs</h4>
               <form onSubmit={handleAddHostGreeting} className="flex gap-2">
-                <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} placeholder="ස්තුති පණිවිඩයක් ලියන්න..." className={`flex-1 border ${activeTheme.border} rounded-xl px-3 py-2 text-sm focus:outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-40 text-gray-800`} />
+                <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} maxLength={500} placeholder="ස්තුති පණිවිඩයක් ලියන්න (අකුරු 500යි)..." className={`flex-1 border ${activeTheme.border} rounded-xl px-3 py-2 text-sm focus:outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-40 text-gray-800`} />
                 <button type="submit" className={`${activeTheme.main} text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm`}>Post</button>
               </form>
             </div>
