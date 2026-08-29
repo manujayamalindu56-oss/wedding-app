@@ -42,7 +42,28 @@ async function compressImage(file: File): Promise<File> {
     };
   });
 }
-
+// -------------------------------------------------------------
+// Smooth Image Component (For Loading Animation)
+// -------------------------------------------------------------
+const SmoothImage = ({ src, alt, className }: { src: string, alt: string, className: string }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  return (
+    <div className={`relative ${className} overflow-hidden bg-gray-100`}>
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse">
+          <span className="text-gray-400 text-3xl opacity-50">🖼️</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        className={`w-full h-full object-cover transition-opacity duration-700 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+};
 // -------------------------------------------------------------
 // Guest Splash Screen Component 
 // -------------------------------------------------------------
@@ -88,6 +109,7 @@ const GuestSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) =
 };
 
 // -------------------------------------------------------------
+// -------------------------------------------------------------
 // Guest Feed Post Component
 // -------------------------------------------------------------
 const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNames, theme }: any) => {
@@ -97,6 +119,17 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
   const [showHeart, setShowHeart] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes || 0);
   const [hasLikedLocally, setHasLikedLocally] = useState(false);
+
+  // --- අලුත්: එක දිගට Like එබීම (Spam කිරීම) නවත්වන Ref එක ---
+  const isProcessingLike = useRef(false);
+
+  // --- අලුත්: බ්‍රවුසර් එක Refresh කරත් කලින් Like කරපු බව මතක තියාගැනීම ---
+  useEffect(() => {
+    const likedPosts = JSON.parse(localStorage.getItem(`liked_posts_${weddingSlug}`) || "[]");
+    if (likedPosts.includes(post.id)) {
+      setHasLikedLocally(true);
+    }
+  }, [post.id, weddingSlug]);
 
   const handleScroll = (e: any) => { setActiveIndex(Math.round(e.target.scrollLeft / e.target.clientWidth)); };
 
@@ -109,10 +142,25 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
   };
 
   const handleLike = async () => {
-    if (hasLikedLocally) return; 
+    // මේ Post එකට කලින් Like කරලා නම්, හරි මේ මොහොතේ Like එක Process වෙනවා නම් ආයෙත් Like වෙන්න දෙන්න එපා
+    if (hasLikedLocally || isProcessingLike.current) return; 
+    
+    isProcessingLike.current = true; // Processing පටන් ගත්තා (Block අනිත් Clicks)
     setHasLikedLocally(true);
     setLikesCount((prev: number) => prev + 1);
+    
+    // Local storage එකේ සේව් කිරීම (Refresh කරත් ආයෙත් Like කරන්න බැරි වෙන්න)
+    const likedPosts = JSON.parse(localStorage.getItem(`liked_posts_${weddingSlug}`) || "[]");
+    if (!likedPosts.includes(post.id)) {
+      likedPosts.push(post.id);
+      localStorage.setItem(`liked_posts_${weddingSlug}`, JSON.stringify(likedPosts));
+    }
+
+    // Database එක Update කිරීම
     await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
+    
+    // තත්පර 1කින් පස්සේ තමයි ආයෙත් Like එකට අදාළ දේවල් නිදහස් කරන්නේ
+    setTimeout(() => { isProcessingLike.current = false; }, 1000);
   };
 
   const handleDoubleTap = (e: any) => {
@@ -141,9 +189,9 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
       <div className="relative w-full group select-none" onDoubleClick={handleDoubleTap}>
         <div onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
           {post.urls.map((url: string, index: number) => (
-            <div key={index} className="w-full h-auto max-h-[500px] flex-shrink-0 snap-center relative">
-              <img src={url} alt="Wedding" className="w-full h-full object-cover max-h-[500px] pointer-events-none" />
-            </div>
+           <div key={index} className="w-full h-[400px] sm:h-[500px] flex-shrink-0 snap-center relative">
+            <SmoothImage src={url} alt="Wedding" className="w-full h-full pointer-events-none" />
+          </div>
           ))}
         </div>
         {showHeart && <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"><div className="text-rose-500 text-[8rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div></div>}
@@ -367,6 +415,12 @@ export default function GalleryPage() {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
     if (!guestName.trim()) { setIsEditNameOpen(true); return; }
+    // --- File Type Validation ---
+    const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
+    if (invalidFiles.length > 0) {
+      showToast("කරුණාකර ඡායාරූප (JPG/PNG) පමණක් තෝරන්න!", "error");
+      return; // වරදක් තියෙනවා නම් අප්ලෝඩ් වෙන එක එතනින්ම නවත්වනවා
+    }
 
     setUploading(true); setUploadProgressPercent(0); setIsUploadOpen(false);
 
@@ -377,7 +431,7 @@ export default function GalleryPage() {
 
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
-        const compressedFile = await imageCompression(files[i], { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
+        const compressedFile = await imageCompression(files[i], { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 });
         completedSteps++; setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
 
         setUploadProgressText(`Uploading Image ${i+1}/${files.length}...`);
@@ -502,7 +556,9 @@ export default function GalleryPage() {
             {viewType === "grid" ? (
               <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden shadow-sm">
                 {posts.flatMap(post => post.urls).map((url: string, index: number) => (
-                  <div key={index} className="relative group overflow-hidden aspect-square cursor-pointer" onClick={() => setFullscreenImage(url)}><img src={url} alt="Wedding" className="object-cover w-full h-full hover:scale-105 transition duration-300" /></div>
+                  <div key={index} className="relative group overflow-hidden aspect-square cursor-pointer" onClick={() => setFullscreenImage(url)}>
+                    <SmoothImage src={url} alt="Wedding" className="w-full h-full group-hover:scale-105 transition-transform duration-300" />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -516,7 +572,7 @@ export default function GalleryPage() {
             {!isGuestbookBlocked ? (
               <div className={`bg-white p-4 rounded-3xl shadow-sm border ${activeTheme.border} flex flex-col gap-3 transition-colors duration-500`}>
                 <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
-                <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න..." className={`border ${activeTheme.border} rounded-xl px-4 py-2 text-sm outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-30 text-gray-800 h-20 resize-none transition-colors duration-500`} />
+                <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} maxLength={500} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න (අකුරු 500යි)..." className={`border ${activeTheme.border} rounded-xl px-4 py-2 text-sm outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-30 text-gray-800 h-20 resize-none transition-colors duration-500`} />
                 <button onClick={() => handleSendGreeting('text')} className={`${activeTheme.main} text-white py-2.5 rounded-xl font-bold text-sm shadow hover:opacity-90 transition-colors duration-500`}>පණිවිඩය යවන්න</button>
                 <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
                   <span className="text-xs text-gray-500 font-medium">හඬ පටයක් (Voice Note) එකතු කරන්න:</span>
