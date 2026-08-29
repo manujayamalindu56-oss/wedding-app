@@ -435,7 +435,26 @@ export default function AdminPage() {
     }});
   };
 
-  const handleDeleteFullPost = (postId: string) => { setConfirmDialog({ message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?", onConfirm: async () => { await supabase.from('posts').delete().eq('id', postId); fetchData(true); showToast("Post එක මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
+const handleDeleteFullPost = (postId: string) => { 
+  setConfirmDialog({ 
+    message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?", 
+    onConfirm: async () => { 
+      try {
+        const { error } = await supabase.from('posts').delete().eq('id', postId);
+        if (error) throw error;
+        
+        // UI එකෙන් එහෙම්ම අයින් කරන්න (Speed up)
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        showToast("Post එක මකා දමන ලදී.", "success"); 
+      } catch (err: any) {
+        console.error("Delete Error:", err);
+        showToast(`මකාදැමීම අසාර්ථකයි: ${err.message || 'Unknown error'}`, "error");
+      } finally {
+        setConfirmDialog(null); 
+      }
+    }
+  }); 
+};
   const handleDeleteComment = (commentId: string) => { setConfirmDialog({ message: "මෙම කමෙන්ට් එක මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('comments').delete().eq('id', commentId); fetchData(true); showToast("කමෙන්ට් එක මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
   const handleDeleteGreeting = (id: string) => { setConfirmDialog({ message: "මෙම සුබපැතුම මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('greetings').delete().eq('id', id); fetchData(true); showToast("සුබපැතුම මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
 
