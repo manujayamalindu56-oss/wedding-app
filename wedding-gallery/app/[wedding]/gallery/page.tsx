@@ -217,6 +217,8 @@ export default function GalleryPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [greetings, setGreetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
 
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -313,6 +315,37 @@ export default function GalleryPage() {
     if (greetingsData) setGreetings(greetingsData.sort((a, b) => { if (a.is_pinned && !b.is_pinned) return -1; if (!a.is_pinned && b.is_pinned) return 1; return 0; }));
     if (!isSilent) setIsLoading(false);
   };
+  // --- Network Connection Monitor ---
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    
+    const handleConnectionChange = () => {
+      if (connection && (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g')) {
+        setIsSlowConnection(true);
+      } else {
+        setIsSlowConnection(false);
+      }
+    };
+
+    if (connection) {
+      handleConnectionChange();
+      connection.addEventListener('change', handleConnectionChange);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      if (connection) connection.removeEventListener('change', handleConnectionChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (isValidWedding && hasEntered) {
@@ -429,6 +462,13 @@ export default function GalleryPage() {
   return (
     <div className={`min-h-screen ${activeTheme.bgLight} font-sans pb-28 relative transition-colors duration-500`}>
       <style dangerouslySetInnerHTML={{__html: `@keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } } .animate-insta-heart { animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; } @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } } @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } } @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } } @keyframes kenBurns4 { 0% { transform: scale(1.15) translate(0, -2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 2%); opacity: 0; } } .animate-kb-0 { animation: kenBurns1 4.5s ease-in-out forwards; } .animate-kb-1 { animation: kenBurns2 4.5s ease-in-out forwards; } .animate-kb-2 { animation: kenBurns3 4.5s ease-in-out forwards; } .animate-kb-3 { animation: kenBurns4 4.5s ease-in-out forwards; }`}} />
+      {/* Network Warning Banner */}
+      {(isOffline || isSlowConnection) && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[300] px-4 py-1.5 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 animate-pulse ${isOffline ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
+          <span className="text-sm">{isOffline ? '❌' : '⚠️'}</span>
+          <span className="tracking-wide">{isOffline ? 'No Internet Connection' : 'Poor Connection'}</span>
+        </div>
+      )}
 
       <div className={`bg-white px-4 py-3 rounded-b-3xl shadow-sm mb-6 sticky top-0 z-20 flex items-center justify-between border-b-4 ${activeTheme.borderMain} transition-colors duration-500`}>
         <div className="flex items-center gap-2 cursor-pointer z-10" onClick={() => { setTempName(guestName); setIsEditNameOpen(true); }}><div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${activeTheme.iconBg} ${activeTheme.text} border ${activeTheme.border} transition-colors duration-500`} title="Change Name">{guestName ? guestName.charAt(0).toUpperCase() : '👤'}</div></div>
