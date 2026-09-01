@@ -87,7 +87,7 @@ const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) =
   const name2 = nameParts[1]?.trim() || "Bride";
 
   return (
-    <div className={`min-h-screen ${theme.bgLight} flex flex-col items-center justify-center font-sans overflow-hidden`}>
+    <div className={`min-h-screen ${theme.bgLight} flex flex-col items-center justify-center font-sans overflow-hidden transition-colors duration-500`}>
       <div className="relative w-full max-w-sm h-72 flex items-center justify-center">
         <div className={`absolute left-0 top-16 w-32 h-32 flex items-center justify-center transition-all duration-[1500ms] ease-out ${walk ? "translate-x-12 opacity-100" : "-translate-x-16 opacity-0"}`}>
           <img src="/groom.png" alt="Groom" className={`w-full h-full object-contain transition-opacity duration-1000 ${showNames ? "opacity-0" : "opacity-100"}`} />
@@ -98,13 +98,13 @@ const AdminSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) =
         <div className={`absolute inset-0 flex items-center justify-center transition-all duration-1000 ease-in-out ${showNames ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"}`}>
           <div className="flex flex-col w-full max-w-[260px] z-10">
             <div className="self-start text-left pl-2 mb-2"><span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name1}</span></div>
-            <div className="self-center my-1"><span className={`text-[3.5rem] ${theme.text} italic drop-shadow-sm leading-none`}>&</span></div>
+            <div className="self-center my-1"><span className={`text-[3.5rem] ${theme.text} italic drop-shadow-sm leading-none transition-colors duration-500`}>&</span></div>
             <div className="self-end text-right pr-2 mt-2"><span className="text-4xl md:text-5xl font-serif font-bold text-gray-800 drop-shadow-sm leading-none">{name2}</span></div>
           </div>
         </div>
       </div>
       <div className={`mt-12 transition-all duration-1000 ${showNames ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}>
-        <p className={`text-xl text-gray-500 font-bold tracking-[0.35em] bg-white/60 px-4 py-1.5 rounded-full shadow-sm border ${theme.border}`}>
+        <p className={`text-xl text-gray-500 font-bold tracking-[0.35em] bg-white/60 px-4 py-1.5 rounded-full shadow-sm border ${theme.border} transition-colors duration-500`}>
           {weddingDate || "Wedding Date"}
         </p>
       </div>
@@ -128,29 +128,29 @@ function AdminGreetingItem({ greeting, onDelete, onUpdate, onPin, theme }: any) 
   };
 
   return (
-    <div className={`bg-white p-4 rounded-2xl shadow-sm border overflow-hidden relative select-none cursor-pointer ${greeting.is_pinned ? 'border-yellow-300 bg-yellow-50/20' : (isHostMsg ? `${theme.border} ${theme.bgLight} bg-opacity-30` : 'border-gray-100')}`} onDoubleClick={handleDoubleTap}>
+    <div className={`bg-white p-4 rounded-2xl shadow-sm border overflow-hidden relative select-none cursor-pointer ${greeting.is_pinned ? 'border-yellow-300 bg-yellow-50/20' : (isHostMsg ? `${theme.border} ${theme.bgLight} bg-opacity-30` : 'border-gray-100')} transition-colors duration-500`} onDoubleClick={handleDoubleTap}>
       <div className="absolute top-3 right-3 flex gap-2 z-20">
         <button onClick={(e) => { e.stopPropagation(); onPin(greeting.id, greeting.is_pinned || false); }} className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-gray-200 transition-all transform hover:scale-110 ${greeting.is_pinned ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-gray-50 text-gray-400 hover:bg-yellow-50'}`} title="Pin">📌</button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(greeting.id); }} className="bg-gray-50 text-gray-400 hover:bg-red-500 hover:text-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-gray-200 transition-all transform hover:scale-110" title="Delete">🗑️</button>
       </div>
 
       <div className="flex items-center gap-2 mb-3 pr-20 relative z-10">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isHostMsg ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`}`}>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isHostMsg ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`} transition-colors duration-500`}>
           {isHostMsg ? '👑' : greeting.user_name.charAt(0).toUpperCase()}
         </div>
         <div className="flex flex-col">
-          <span className={`text-sm block ${isHostMsg ? `font-extrabold ${theme.text}` : 'font-bold text-gray-800'}`}>
+          <span className={`text-sm block ${isHostMsg ? `font-extrabold ${theme.text}` : 'font-bold text-gray-800'} transition-colors duration-500`}>
             {greeting.user_name} {greeting.is_pinned && <span className="text-[10px] bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full ml-1 uppercase">Pinned</span>}
           </span>
         </div>
       </div>
 
       <div className="relative z-10">
-        {greeting.type === "text" && <p className={`text-gray-600 text-sm leading-relaxed ${theme.bgLight} bg-opacity-50 p-3 rounded-xl italic pointer-events-none`}>"{greeting.content}"</p>}
-        {greeting.type === "voice" && <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}><audio controls src={greeting.content} className={`w-full h-10 outline-none rounded-full ${theme.bgLight}`} /></div>}
+        {greeting.type === "text" && <p className={`text-gray-600 text-sm leading-relaxed ${theme.bgLight} bg-opacity-50 p-3 rounded-xl italic pointer-events-none transition-colors duration-500`}>"{greeting.content}"</p>}
+        {greeting.type === "voice" && <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}><audio controls src={greeting.content} className={`w-full h-10 outline-none rounded-full ${theme.bgLight} transition-colors duration-500`} /></div>}
       </div>
       {showHeart && <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"><div className="text-rose-500 text-[6rem] drop-shadow-2xl animate-insta-heart leading-none">♥</div></div>}
-      {greeting.liked_by_host && <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">Liked by <span className={`font-bold ${theme.text}`}>👩‍❤️‍👨 Mr & Mrs</span></div>}
+      {greeting.liked_by_host && <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-1 relative z-10">Liked by <span className={`font-bold ${theme.text} transition-colors duration-500`}>👩‍❤️‍👨 Mr & Mrs</span></div>}
     </div>
   );
 }
@@ -181,14 +181,23 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
   const handleDoubleTap = () => { if (!post.liked_by_host) handleHostLike(); setShowHeart(true); setTimeout(() => setShowHeart(false), 800); };
   const isHostPost = post.user_name === "Mr & Mrs";
 
+  // 🟢 Pinned Host Comments Logic
+  const sortedComments = [...(post.comments || [])].sort((a, b) => {
+    const isAHost = a.user_name === "Mr & Mrs";
+    const isBHost = b.user_name === "Mr & Mrs";
+    if (isAHost && !isBHost) return -1;
+    if (!isAHost && isBHost) return 1;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
   return (
-    <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : theme.border}`}>
-      <div className={`p-3 flex items-center justify-between ${isHostPost ? theme.iconBg : theme.bgLight}`}>
+    <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : theme.border} transition-colors duration-500`}>
+      <div className={`p-3 flex items-center justify-between ${isHostPost ? theme.iconBg : theme.bgLight} transition-colors duration-500`}>
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isHostPost ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${isHostPost ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`} transition-colors duration-500`}>
             {isHostPost ? '👑' : post.user_name.charAt(0).toUpperCase()}
           </div>
-          <span className={`text-sm ${isHostPost ? `font-extrabold ${theme.text} tracking-wide` : 'font-bold text-gray-700'}`}>
+          <span className={`text-sm ${isHostPost ? `font-extrabold ${theme.text} tracking-wide` : 'font-bold text-gray-700'} transition-colors duration-500`}>
             {post.user_name}
           </span>
           {post.is_pinned && <span className="text-xs bg-yellow-100 text-yellow-600 font-bold px-2 py-0.5 rounded-full">Pinned 📌</span>}
@@ -216,7 +225,15 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
         )}
       </div>
 
-      <div className="p-4 flex flex-col gap-3">
+      {/* 🟢 Caption Section */}
+      {post.caption && (
+        <div className="px-4 pt-3 pb-1 text-sm text-gray-800 leading-relaxed">
+          <span className="font-bold mr-2">{post.user_name}</span>
+          <span>{post.caption}</span>
+        </div>
+      )}
+
+      <div className={`px-4 pb-4 flex flex-col gap-3 ${post.caption ? 'pt-1' : 'pt-4'}`}>
         <div className="flex items-center gap-6">
           <button onClick={handleHostLike} className="flex items-center gap-1 text-gray-500 hover:text-rose-500 transition-colors">
             <span className={`text-3xl leading-none transition-transform ${post.liked_by_host ? 'scale-110 text-rose-500' : 'hover:scale-110 text-gray-400'}`}>{post.liked_by_host ? "♥" : "♡"}</span>
@@ -226,7 +243,7 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
             <span className="text-2xl">💬</span><span className="font-bold text-sm">{(post.comments || []).length} Comments</span>
           </button>
         </div>
-        {post.liked_by_host && <div className="text-xs text-gray-600 font-medium flex items-center gap-1">Liked by <span className={`font-bold ${theme.text}`}>👩‍❤️‍👨 Mr & Mrs</span></div>}
+        {post.liked_by_host && <div className="text-xs text-gray-600 font-medium flex items-center gap-1">Liked by <span className={`font-bold ${theme.text} transition-colors duration-500`}>👩‍❤️‍👨 Mr & Mrs</span></div>}
       </div>
 
       {isCommentOpen && (
@@ -237,17 +254,17 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
               <button onClick={() => setIsCommentOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button>
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
-              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
-              {(post.comments || []).map((c: any) => {
+              {sortedComments.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
+              {sortedComments.map((c: any) => {
                 const isHostComment = c.user_name === "Mr & Mrs";
                 return (
-                  <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? `${theme.bgLight} ${theme.border}` : 'bg-gray-50 border-gray-100'}`}>
+                  <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? `${theme.bgLight} ${theme.border}` : 'bg-gray-50 border-gray-100'} transition-colors duration-500`}>
                     <div className="flex items-start gap-2.5">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 ${isHostComment ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 ${isHostComment ? `${theme.main} text-white` : `${theme.iconBg} ${theme.text}`} transition-colors duration-500`}>
                         {isHostComment ? '👑' : c.user_name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <span className={`text-xs block mb-0.5 ${isHostComment ? `font-extrabold ${theme.text} text-sm` : 'font-bold text-gray-800'}`}>{c.user_name}</span>
+                        <span className={`text-xs block mb-0.5 ${isHostComment ? `font-extrabold ${theme.text} text-sm` : 'font-bold text-gray-800'} transition-colors duration-500`}>{c.user_name}</span>
                         <p className="text-gray-700 text-sm">{c.text}</p>
                       </div>
                     </div>
@@ -257,8 +274,8 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
               })}
             </div>
             <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-gray-100">
-              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Reply as Mr & Mrs..." className={`flex-1 border ${theme.border} rounded-xl px-4 py-2.5 text-sm focus:outline-none ${theme.outline} ${theme.bgLight} bg-opacity-50 text-gray-800`} />
-              <button type="submit" className={`${theme.main} text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 transition`}>Reply</button>
+              <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Reply as Mr & Mrs..." className={`flex-1 border ${theme.border} rounded-xl px-4 py-2.5 text-sm focus:outline-none ${theme.outline} ${theme.bgLight} bg-opacity-50 text-gray-800 transition-colors duration-500`} />
+              <button type="submit" className={`${theme.main} text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 transition-colors duration-500`}>Reply</button>
             </form>
           </div>
         </div>
@@ -306,6 +323,7 @@ export default function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
   const [uploadProgressText, setUploadProgressText] = useState("");
+  const [uploadCaption, setUploadCaption] = useState(""); // 🟢 Caption State
 
   const [fullscreenData, setFullscreenData] = useState<{url: string, post: any, idx: number} | null>(null);
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -313,6 +331,7 @@ export default function AdminPage() {
   const [isHostPanelOpen, setIsHostPanelOpen] = useState(false);
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
+  const [allowDownloads, setAllowDownloads] = useState(true); // 🟢 Downloads State
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
@@ -328,6 +347,7 @@ export default function AdminPage() {
       setSelectedThemeColor(data.theme_color || 'pink');
       setIsUploadBlocked(data.uploads_blocked);
       setIsGuestbookBlocked(data.guestbook_blocked);
+      setAllowDownloads(data.allow_downloads !== false);
       setIsValidWedding(true);
 
       if (data.music_url) { audioRef.current = new Audio(data.music_url); audioRef.current.loop = true; }
@@ -353,6 +373,7 @@ export default function AdminPage() {
     if (settingsData) {
       setIsUploadBlocked(settingsData.uploads_blocked);
       setIsGuestbookBlocked(settingsData.guestbook_blocked);
+      setAllowDownloads(settingsData.allow_downloads !== false);
       if (settingsData.theme_color !== selectedThemeColor) {
         setActiveTheme(THEMES[settingsData.theme_color] || THEMES.pink);
         setSelectedThemeColor(settingsData.theme_color);
@@ -392,6 +413,9 @@ export default function AdminPage() {
 
   const toggleUploadBlock = async () => { const newVal = !isUploadBlocked; setIsUploadBlocked(newVal); await supabase.from('weddings').update({ uploads_blocked: newVal }).eq('slug', weddingSlug); };
   const toggleGuestbookBlock = async () => { const newVal = !isGuestbookBlocked; setIsGuestbookBlocked(newVal); await supabase.from('weddings').update({ guestbook_blocked: newVal }).eq('slug', weddingSlug); };
+  
+  // 🟢 Download Control Toggle
+  const toggleDownloads = async () => { const newVal = !allowDownloads; setAllowDownloads(newVal); await supabase.from('weddings').update({ allow_downloads: newVal }).eq('slug', weddingSlug); showToast(newVal ? "Guest downloads allowed." : "Guest downloads blocked.", "info"); };
 
   const handleThemeChange = async (color: string) => {
     setSelectedThemeColor(color);
@@ -428,7 +452,6 @@ export default function AdminPage() {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
 
-    // --- File Type Validation ---
     const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
     if (invalidFiles.length > 0) {
       showToast("Please select images (JPG/PNG) only!", "error");
@@ -444,7 +467,6 @@ export default function AdminPage() {
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`Compressing Image ${i+1}/${files.length}...`);
         
-        // --- 0.5MB Compression with higher Quality ---
         const compressedFile = await imageCompression(files[i], { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true, initialQuality: 0.8 });
         
         completedSteps++; setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
@@ -457,8 +479,9 @@ export default function AdminPage() {
         uploadedUrls.push(supabase.storage.from('wedding-photos').getPublicUrl(fileName).data.publicUrl);
         completedSteps++; setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
-      await supabase.from('posts').insert([{ wedding_slug: weddingSlug, user_name: "Mr & Mrs", urls: uploadedUrls }]);
-      setUploading(false); fetchData(true); showToast("Photos uploaded successfully! 📸", "success");
+      // 🟢 Admin Upload with Caption
+      await supabase.from('posts').insert([{ wedding_slug: weddingSlug, user_name: "Mr & Mrs", urls: uploadedUrls, likes: 0, caption: uploadCaption }]);
+      setUploading(false); setUploadCaption(""); fetchData(true); showToast("Photos uploaded successfully! 📸", "success");
     } catch (error) { showToast("Upload failed. Please try again.", "error"); setUploading(false); }
   };
 
@@ -608,6 +631,18 @@ export default function AdminPage() {
 
               <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">App Controls</h3>
+                
+                {/* 🟢 Guest Downloads Toggle */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-800">Allow Downloads</span>
+                    <span className="text-[10px] text-gray-500">Guests can save photos</span>
+                  </div>
+                  <button onClick={toggleDownloads} className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${allowDownloads ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${allowDownloads ? 'translate-x-6' : ''}`}></div>
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-between mb-4"><div className="flex flex-col"><span className="text-sm font-bold text-gray-800">Block New Photos</span><span className="text-[10px] text-gray-500">Stop guests from uploading</span></div><button onClick={toggleUploadBlock} className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isUploadBlocked ? 'bg-red-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isUploadBlocked ? 'translate-x-6' : ''}`}></div></button></div>
                 <div className="flex items-center justify-between"><div className="flex flex-col"><span className="text-sm font-bold text-gray-800">Block Guestbook</span><span className="text-[10px] text-gray-500">Stop new wishes</span></div><button onClick={toggleGuestbookBlock} className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${isGuestbookBlocked ? 'bg-red-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isGuestbookBlocked ? 'translate-x-6' : ''}`}></div></button></div>
               </div>
@@ -616,7 +651,6 @@ export default function AdminPage() {
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Share Gallery</h3>
                 <div className="flex flex-col gap-2">
                   <button onClick={() => { const currentUrl = window.location.href.split('/admin')[0] + '/gallery'; navigator.clipboard.writeText(currentUrl); showToast("Guest Link copied to clipboard! 🔗", "success"); }} className={`w-full ${activeTheme.bgLight} border ${activeTheme.border} ${activeTheme.text} font-bold py-3.5 rounded-xl shadow-sm hover:opacity-80 transition text-sm flex items-center justify-center gap-2`}>🔗 Copy Guest Link</button>
-                  {/* --- QR Code Button --- */}
                   <button onClick={downloadQRCode} className={`w-full bg-white border border-gray-200 text-gray-700 font-bold py-3.5 rounded-xl shadow-sm hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2`}>🔲 Download QR Code (Printable)</button>
                 </div>
               </div>
@@ -709,17 +743,21 @@ export default function AdminPage() {
         )}
       </div>
 
-      {!isUploadBlocked && <button onClick={() => setIsUploadOpen(true)} className={`fixed bottom-6 right-6 ${activeTheme.main} text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:opacity-90 z-40 transition-transform hover:scale-105`}>＋</button>}
+      {!isUploadBlocked && <button onClick={() => setIsUploadOpen(true)} className={`fixed bottom-6 right-6 ${activeTheme.main} text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:opacity-90 z-40 transition-transform hover:scale-105 duration-500`}>＋</button>}
 
       {isUploadOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
-            <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 text-lg">Post as Mr & Mrs</h3><button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button></div>
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <label className={`${activeTheme.bgLight} ${activeTheme.text} font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:opacity-80 transition cursor-pointer border ${activeTheme.border}`}><span className="text-3xl">📷</span><span className="text-sm">Camera</span><input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handleHostUpload} className="hidden" /></label>
-              <label className={`bg-gray-50 text-gray-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition cursor-pointer border border-gray-200`}><span className="text-3xl">🖼️</span><span className="text-sm">Gallery</span><input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handleHostUpload} className="hidden" /></label>
+            <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 text-lg">Add Photos 📸</h3><button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button></div>
+            
+            {/* 🟢 Caption Input Field */}
+            <input type="text" value={uploadCaption} onChange={(e) => setUploadCaption(e.target.value)} placeholder="Write a caption (optional)..." className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 mb-1 text-sm font-medium focus:outline-none ${activeTheme.outline} text-gray-800 ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} />
+
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <label className={`${activeTheme.bgLight} ${activeTheme.text} font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 hover:opacity-80 transition cursor-pointer border ${activeTheme.border} duration-500`}><span className="text-3xl">📷</span><span className="text-sm">Camera</span><input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handleHostUpload} className="hidden" /></label>
+              <label className={`bg-gray-50 text-gray-600 font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition cursor-pointer border border-gray-200`}><span className="text-3xl">🖼️</span><span className="text-sm">Gallery</span><input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handleHostUpload} className="hidden" /></label>
             </div>
-            <p className="text-xs text-center text-gray-400 mt-2">Photos will be compressed automatically.</p>
+            <p className="text-xs text-center text-gray-400 mt-1">Photos will be compressed automatically.</p>
           </div>
         </div>
       )}
@@ -729,7 +767,7 @@ export default function AdminPage() {
           <div className="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-6 animate-fade-in-up">
             <div className="relative w-24 h-24 flex items-center justify-center">
               <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke={activeTheme.stroke} strokeWidth="8" /><circle cx="50" cy="50" r="45" fill="none" stroke={activeTheme.fill} strokeWidth="8" strokeLinecap="round" strokeDasharray="283" strokeDashoffset={283 - (283 * uploadProgressPercent) / 100} className="transition-all duration-300 ease-out" /></svg>
-              <span className={`text-2xl font-extrabold ${activeTheme.text}`}>{uploadProgressPercent}%</span>
+              <span className={`text-2xl font-extrabold ${activeTheme.text} transition-colors duration-500`}>{uploadProgressPercent}%</span>
             </div>
             <div className="text-center"><h3 className="font-bold text-gray-800 text-lg mb-1">{uploadProgressText}</h3><p className="text-xs text-gray-500">Please don't close the app.</p></div>
           </div>
@@ -737,15 +775,33 @@ export default function AdminPage() {
       )}
 
       {fullscreenData && (
-        <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-2 backdrop-blur-xl">
+        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-2 backdrop-blur-md">
           <button className="absolute top-6 right-6 text-white text-3xl font-bold bg-white/20 w-12 h-12 rounded-full flex items-center justify-center z-50 hover:bg-red-500 transition" onClick={() => setFullscreenData(null)}>×</button>
-          <img src={fullscreenData.url} alt="Fullscreen" className="max-w-full max-h-full object-contain rounded-lg mb-20" />
-          <div className="absolute bottom-6 flex items-center justify-center gap-8 bg-white/10 px-8 py-4 rounded-full backdrop-blur-md border border-white/20">
+          <img src={fullscreenData.url} alt="Fullscreen" className="max-w-full max-h-[80vh] object-contain rounded-lg mb-10" />
+          
+          <div className="absolute bottom-8 flex items-center justify-center gap-8 bg-white/10 px-8 py-4 rounded-full backdrop-blur-md border border-white/20">
             <button onClick={() => toggleSlideshow(fullscreenData.post.id, fullscreenData.url, fullscreenData.post.selected_photos || [])} className="text-4xl transition-transform hover:scale-110 flex flex-col items-center gap-1">
               {(() => { const currentPost = posts.find(p => p.id === fullscreenData.post.id); const isFav = currentPost?.selected_photos?.includes(fullscreenData.url); return isFav ? <span className="text-rose-500 leading-none mt-1">♥</span> : <span className="text-white leading-none mt-1">♡</span>; })()}
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Fav</span>
             </button>
-            <button onClick={async () => { try { const res = await fetch(fullscreenData.url); const blob = await res.blob(); const a = document.createElement('a'); a.href = window.URL.createObjectURL(blob); a.download = `Wedding_Photo_${Date.now()}.jpg`; a.click(); } catch (e) { showToast("Download failed.", "error"); } }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1"><span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save</span></button>
+            
+            {/* 🟢 Admin Download Button (Admin can always download) */}
+            <button onClick={async () => {
+              try {
+                const res = await fetch(fullscreenData.url);
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = window.URL.createObjectURL(blob);
+                a.download = `Wedding_Photo_${Date.now()}.jpg`;
+                a.click();
+                showToast("Downloaded successfully!", "success");
+              } catch (e) {
+                showToast("Download failed.", "error");
+              }
+            }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1">
+              <span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save</span>
+            </button>
+            
             <button onClick={() => { handleDeletePhoto(fullscreenData.post.id, fullscreenData.idx, fullscreenData.post.urls); setFullscreenData(null); }} className="text-3xl text-white hover:text-red-500 transition-transform hover:scale-110 flex flex-col items-center gap-1"><span>🗑️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Del</span></button>
           </div>
         </div>
@@ -758,7 +814,7 @@ export default function AdminPage() {
             <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
               <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
               <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
-              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("Please allow audio playback in your browser.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105`}>▶ Tap to Start</button>
+              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("Please allow audio playback in your browser.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105 duration-500`}>▶ Tap to Start</button>
             </div>
           ) : isSlideshowFinished ? (
             <div className="text-center flex flex-col items-center justify-center animate-fade-in-up z-50 p-6">
@@ -775,8 +831,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {toast && <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${toast.type === 'success' ? 'bg-green-500 text-white' : toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'}`}><span className="text-xl leading-none">{toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}</span><span className="tracking-wide">{toast.message}</span></div>}
-
+      {/* 🟢 Confirmation Modal */}
       {confirmDialog && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className={`bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4 border-t-4 border-red-500`}>

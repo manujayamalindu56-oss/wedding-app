@@ -42,6 +42,7 @@ async function compressImage(file: File): Promise<File> {
     };
   });
 }
+
 // -------------------------------------------------------------
 // Smooth Image Component (For Loading Animation)
 // -------------------------------------------------------------
@@ -64,6 +65,7 @@ const SmoothImage = ({ src, alt, className }: { src: string, alt: string, classN
     </div>
   );
 };
+
 // -------------------------------------------------------------
 // Guest Splash Screen Component 
 // -------------------------------------------------------------
@@ -111,7 +113,7 @@ const GuestSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) =
 // -------------------------------------------------------------
 // Guest Feed Post Component
 // -------------------------------------------------------------
-const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNames, theme }: any) => {
+const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNames, theme, onDeletePost, onDeleteComment }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [newComment, setNewComment] = useState("");
@@ -139,31 +141,52 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
   };
 
   const handleLike = async () => {
-    if (hasLikedLocally || isProcessingLike.current) return; 
-    
+    if (isProcessingLike.current) return; 
     isProcessingLike.current = true; 
-    setHasLikedLocally(true);
-    setLikesCount((prev: number) => prev + 1);
     
     const likedPosts = JSON.parse(localStorage.getItem(`liked_posts_${weddingSlug}`) || "[]");
-    if (!likedPosts.includes(post.id)) {
-      likedPosts.push(post.id);
-      localStorage.setItem(`liked_posts_${weddingSlug}`, JSON.stringify(likedPosts));
-    }
 
-    await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
+    if (hasLikedLocally) {
+      // 🟢 Un-like Feature
+      setHasLikedLocally(false);
+      setLikesCount((prev: number) => Math.max(0, prev - 1));
+      const updatedLikes = likedPosts.filter((id: string) => id !== post.id);
+      localStorage.setItem(`liked_posts_${weddingSlug}`, JSON.stringify(updatedLikes));
+      await supabase.from('posts').update({ likes: Math.max(0, (post.likes || 1) - 1) }).eq('id', post.id);
+    } else {
+      // 🟢 Like Feature
+      setHasLikedLocally(true);
+      setLikesCount((prev: number) => prev + 1);
+      if (!likedPosts.includes(post.id)) {
+        likedPosts.push(post.id);
+        localStorage.setItem(`liked_posts_${weddingSlug}`, JSON.stringify(likedPosts));
+      }
+      await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
+    }
     
     setTimeout(() => { isProcessingLike.current = false; }, 1000);
   };
 
   const handleDoubleTap = (e: any) => {
     e.preventDefault();
-    handleLike();
+    if (!hasLikedLocally) {
+      handleLike();
+    }
     setShowHeart(true);
     setTimeout(() => setShowHeart(false), 1000); 
   };
 
   const isHostPost = post.user_name === "Mr & Mrs" || post.user_name === coupleNames;
+  const isMyPost = post.user_name === currentUserName;
+
+  // 🟢 Pinned Host Comments Logic
+  const sortedComments = [...(post.comments || [])].sort((a, b) => {
+    const isAHost = a.user_name === "Mr & Mrs" || a.user_name === coupleNames;
+    const isBHost = b.user_name === "Mr & Mrs" || b.user_name === coupleNames;
+    if (isAHost && !isBHost) return -1;
+    if (!isAHost && isBHost) return 1;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden relative ${post.is_pinned ? 'border-yellow-300' : theme.border} transition-colors duration-500`}>
@@ -177,6 +200,10 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
           </span>
           {post.is_pinned && <span className="text-[10px] bg-yellow-100 text-yellow-600 font-bold px-2 py-0.5 rounded-full ml-1 uppercase">Pinned 📌</span>}
         </div>
+        {/* 🟢 Guest can delete their own post */}
+        {isMyPost && (
+          <button onClick={() => onDeletePost(post.id)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-white/50 rounded-full transition-colors" title="Delete Post">🗑️</button>
+        )}
       </div>
       
       <div className="relative w-full group select-none" onDoubleClick={handleDoubleTap}>
@@ -195,7 +222,15 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
         )}
       </div>
       
-      <div className="p-4 flex flex-col gap-3">
+      {/* 🟢 Caption Section */}
+      {post.caption && (
+        <div className="px-4 pt-3 pb-1 text-sm text-gray-800 leading-relaxed">
+          <span className="font-bold mr-2">{post.user_name}</span>
+          <span>{post.caption}</span>
+        </div>
+      )}
+
+      <div className={`px-4 pb-4 flex flex-col gap-3 ${post.caption ? 'pt-1' : 'pt-4'}`}>
         <div className="flex items-center gap-6">
           <button onClick={handleLike} className={`flex items-center gap-1.5 text-gray-500 hover:text-rose-500 transition-colors`}>
             <span className={`text-3xl leading-none transition-transform ${hasLikedLocally ? 'scale-110 text-rose-500' : 'hover:scale-110 text-gray-400'}`}>{hasLikedLocally ? '♥' : '♡'}</span>
@@ -213,9 +248,11 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4"><h3 className="font-bold text-gray-800 text-base">Comments</h3><button onClick={() => setIsCommentOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button></div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
-              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
-              {(post.comments || []).map((c: any) => {
+              {sortedComments.length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
+              {sortedComments.map((c: any) => {
                 const isHostComment = c.user_name === "Mr & Mrs" || c.user_name === coupleNames;
+                const isMyComment = c.user_name === currentUserName;
+                
                 return (
                   <div key={c.id} className={`p-3 rounded-2xl border flex items-start justify-between gap-2.5 ${isHostComment ? `${theme.bgLight} ${theme.border}` : 'bg-gray-50 border-gray-100'} transition-colors duration-500`}>
                     <div className="flex items-start gap-2.5">
@@ -225,6 +262,10 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
                         <p className="text-gray-700 text-sm">{c.text}</p>
                       </div>
                     </div>
+                    {/* 🟢 Guest can delete their own comment */}
+                    {isMyComment && (
+                      <button onClick={() => onDeleteComment(c.id)} className="text-gray-400 hover:text-red-500 p-1 text-sm transition-colors" title="Delete Comment">🗑️</button>
+                    )}
                   </div>
                 );
               })}
@@ -262,6 +303,8 @@ export default function GalleryPage() {
   const [isSlowConnection, setIsSlowConnection] = useState(false);
 
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{message: string, onConfirm: () => void} | null>(null);
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
@@ -274,6 +317,7 @@ export default function GalleryPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
   const [uploadProgressText, setUploadProgressText] = useState("");
+  const [uploadCaption, setUploadCaption] = useState(""); // 🟢 Caption State
 
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [isProjectorOpen, setIsProjectorOpen] = useState(false);
@@ -295,6 +339,7 @@ export default function GalleryPage() {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isUploadBlocked, setIsUploadBlocked] = useState(false);
   const [isGuestbookBlocked, setIsGuestbookBlocked] = useState(false);
+  const [allowDownloads, setAllowDownloads] = useState(true); // 🟢 Download Control State
   const [hasEntered, setHasEntered] = useState(false);
 
   useEffect(() => {
@@ -309,6 +354,7 @@ export default function GalleryPage() {
       setActiveTheme(THEMES[data.theme_color] || THEMES.pink);
       setIsUploadBlocked(data.uploads_blocked);
       setIsGuestbookBlocked(data.guestbook_blocked);
+      setAllowDownloads(data.allow_downloads !== false); // Default true
       setIsValidWedding(true);
 
       if (data.music_url) { audioRef.current = new Audio(data.music_url); audioRef.current.loop = true; }
@@ -319,7 +365,7 @@ export default function GalleryPage() {
     };
     fetchInitialData();
 
-    // 2. Realtime Listener for INSTANT Theme Changes
+    // 2. Realtime Listener
     const realtimeSub = supabase
       .channel('theme-updates')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'weddings' }, (payload) => {
@@ -327,6 +373,7 @@ export default function GalleryPage() {
           setActiveTheme(THEMES[payload.new.theme_color] || THEMES.pink);
           setIsUploadBlocked(payload.new.uploads_blocked);
           setIsGuestbookBlocked(payload.new.guestbook_blocked);
+          setAllowDownloads(payload.new.allow_downloads !== false);
         }
       })
       .subscribe();
@@ -410,7 +457,6 @@ export default function GalleryPage() {
     if (files.length === 0) return;
     if (!guestName.trim()) { setIsEditNameOpen(true); return; }
     
-    // --- File Type Validation ---
     const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
     if (invalidFiles.length > 0) {
       showToast("Please select images (JPG/PNG) only!", "error");
@@ -440,9 +486,35 @@ export default function GalleryPage() {
         completedSteps++; setUploadProgressPercent(Math.round((completedSteps / totalSteps) * 100));
       }
 
-      await supabase.from('posts').insert([{ wedding_slug: weddingSlug, user_name: guestName, urls: uploadedUrls, likes: 0 }]);
-      setUploading(false); fetchData(true); showToast("Photos uploaded successfully! 📸", "success");
+      await supabase.from('posts').insert([{ wedding_slug: weddingSlug, user_name: guestName, urls: uploadedUrls, likes: 0, caption: uploadCaption }]);
+      setUploading(false); setUploadCaption(""); fetchData(true); showToast("Photos uploaded successfully! 📸", "success");
     } catch (error) { showToast("Upload failed. Please try again.", "error"); setUploading(false); }
+  };
+
+  // 🟢 Delete Post Handler
+  const handleDeletePost = (postId: string) => {
+    setConfirmDialog({
+      message: "Are you sure you want to delete your post?",
+      onConfirm: async () => {
+        await supabase.from('posts').delete().eq('id', postId);
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        showToast("Post deleted successfully.", "success");
+        setConfirmDialog(null);
+      }
+    });
+  };
+
+  // 🟢 Delete Comment Handler
+  const handleDeleteComment = (commentId: string) => {
+    setConfirmDialog({
+      message: "Are you sure you want to delete your comment?",
+      onConfirm: async () => {
+        await supabase.from('comments').delete().eq('id', commentId);
+        fetchData(true);
+        showToast("Comment deleted successfully.", "success");
+        setConfirmDialog(null);
+      }
+    });
   };
 
   const startVoiceRecording = async () => {
@@ -559,7 +631,8 @@ export default function GalleryPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-6">
-                {posts.map((post) => <GuestFeedPost key={post.id} post={post} currentUserName={guestName} onRefresh={() => fetchData(true)} weddingSlug={weddingSlug} coupleNames={weddingInfo.couple_names} theme={activeTheme} />)}
+                {/* 🟢 Passing the Delete functions to Feed Posts */}
+                {posts.map((post) => <GuestFeedPost key={post.id} post={post} currentUserName={guestName} onRefresh={() => fetchData(true)} weddingSlug={weddingSlug} coupleNames={weddingInfo.couple_names} theme={activeTheme} onDeletePost={handleDeletePost} onDeleteComment={handleDeleteComment} />)}
               </div>
             )}
           </div>
@@ -622,11 +695,15 @@ export default function GalleryPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-fade-in-up">
             <div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 text-lg">Add Photos 📸</h3><button onClick={() => setIsUploadOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold">×</button></div>
-            <div className="grid grid-cols-2 gap-3 mt-2">
-              <label className={`${activeTheme.bgLight} ${activeTheme.text} font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:opacity-80 transition cursor-pointer border ${activeTheme.border} duration-500`}><span className="text-3xl">📷</span><span className="text-sm">Camera</span><input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handlePhotoUpload} className="hidden" /></label>
-              <label className={`bg-gray-50 text-gray-600 font-bold py-6 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition cursor-pointer border border-gray-200`}><span className="text-3xl">🖼️</span><span className="text-sm">Gallery</span><input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handlePhotoUpload} className="hidden" /></label>
+            
+            {/* 🟢 Caption Input Input Field */}
+            <input type="text" value={uploadCaption} onChange={(e) => setUploadCaption(e.target.value)} placeholder="Write a caption (optional)..." className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 mb-1 text-sm font-medium focus:outline-none ${activeTheme.outline} text-gray-800 ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} />
+
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <label className={`${activeTheme.bgLight} ${activeTheme.text} font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 hover:opacity-80 transition cursor-pointer border ${activeTheme.border} duration-500`}><span className="text-3xl">📷</span><span className="text-sm">Camera</span><input type="file" accept="image/jpeg, image/png, image/jpg" capture="environment" onChange={handlePhotoUpload} className="hidden" /></label>
+              <label className={`bg-gray-50 text-gray-600 font-bold py-5 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition cursor-pointer border border-gray-200`}><span className="text-3xl">🖼️</span><span className="text-sm">Gallery</span><input type="file" accept="image/jpeg, image/png, image/jpg" multiple onChange={handlePhotoUpload} className="hidden" /></label>
             </div>
-            <p className="text-xs text-center text-gray-400 mt-2">Photos will be compressed automatically.</p>
+            <p className="text-xs text-center text-gray-400 mt-1">Photos will be compressed automatically.</p>
           </div>
         </div>
       )}
@@ -655,9 +732,30 @@ export default function GalleryPage() {
       )}
 
       {fullscreenImage && (
-        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center p-2" onClick={() => setFullscreenImage(null)}>
-          <button className="absolute top-4 right-4 text-white text-3xl font-bold bg-white/20 w-10 h-10 rounded-full flex items-center justify-center">×</button>
-          <img src={fullscreenImage} alt="Fullscreen" className="max-w-full max-h-full object-contain rounded-lg" />
+        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-2 backdrop-blur-md">
+          <button className="absolute top-6 right-6 text-white text-3xl font-bold bg-white/20 w-12 h-12 rounded-full flex items-center justify-center z-50 hover:bg-red-500 transition" onClick={() => setFullscreenImage(null)}>×</button>
+          <img src={fullscreenImage} alt="Fullscreen" className="max-w-full max-h-[80vh] object-contain rounded-lg mb-10" />
+          
+          {/* 🟢 Guest Downloads Control */}
+          {allowDownloads && (
+            <div className="absolute bottom-8 flex items-center justify-center bg-white/10 px-8 py-4 rounded-full backdrop-blur-md border border-white/20">
+              <button onClick={async () => {
+                try {
+                  const res = await fetch(fullscreenImage);
+                  const blob = await res.blob();
+                  const a = document.createElement('a');
+                  a.href = window.URL.createObjectURL(blob);
+                  a.download = `Wedding_Photo_${Date.now()}.jpg`;
+                  a.click();
+                  showToast("Downloaded successfully!", "success");
+                } catch (e) {
+                  showToast("Download failed.", "error");
+                }
+              }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1">
+                <span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save Photo</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -682,6 +780,20 @@ export default function GalleryPage() {
               {slideshowUrls.length > 0 && <div className="absolute inset-0 overflow-hidden bg-black flex items-center justify-center"><img key={currentSlide} src={slideshowUrls[currentSlide]} alt="Memory" className={`w-full h-full object-contain opacity-0 animate-kb-${currentSlide % 4}`} /></div>}
             </>
           )}
+        </div>
+      )}
+
+      {/* 🟢 Confirmation Modal for Deleting Posts/Comments */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4 border-t-4 border-red-500">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-2 shadow-inner">⚠️</div>
+            <h3 className="font-bold text-gray-800 text-center text-lg">{confirmDialog.message}</h3>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl shadow-sm hover:bg-gray-200 transition">Cancel</button>
+              <button onClick={confirmDialog.onConfirm} className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-red-600 transition">Delete</button>
+            </div>
+          </div>
         </div>
       )}
 
