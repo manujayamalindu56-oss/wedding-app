@@ -109,7 +109,6 @@ const GuestSplashScreen = ({ onFinish, coupleNames, weddingDate, theme }: any) =
 };
 
 // -------------------------------------------------------------
-// -------------------------------------------------------------
 // Guest Feed Post Component
 // -------------------------------------------------------------
 const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNames, theme }: any) => {
@@ -120,10 +119,8 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
   const [likesCount, setLikesCount] = useState(post.likes || 0);
   const [hasLikedLocally, setHasLikedLocally] = useState(false);
 
-  // --- අලුත්: එක දිගට Like එබීම (Spam කිරීම) නවත්වන Ref එක ---
   const isProcessingLike = useRef(false);
 
-  // --- අලුත්: බ්‍රවුසර් එක Refresh කරත් කලින් Like කරපු බව මතක තියාගැනීම ---
   useEffect(() => {
     const likedPosts = JSON.parse(localStorage.getItem(`liked_posts_${weddingSlug}`) || "[]");
     if (likedPosts.includes(post.id)) {
@@ -142,24 +139,20 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
   };
 
   const handleLike = async () => {
-    // මේ Post එකට කලින් Like කරලා නම්, හරි මේ මොහොතේ Like එක Process වෙනවා නම් ආයෙත් Like වෙන්න දෙන්න එපා
     if (hasLikedLocally || isProcessingLike.current) return; 
     
-    isProcessingLike.current = true; // Processing පටන් ගත්තා (Block අනිත් Clicks)
+    isProcessingLike.current = true; 
     setHasLikedLocally(true);
     setLikesCount((prev: number) => prev + 1);
     
-    // Local storage එකේ සේව් කිරීම (Refresh කරත් ආයෙත් Like කරන්න බැරි වෙන්න)
     const likedPosts = JSON.parse(localStorage.getItem(`liked_posts_${weddingSlug}`) || "[]");
     if (!likedPosts.includes(post.id)) {
       likedPosts.push(post.id);
       localStorage.setItem(`liked_posts_${weddingSlug}`, JSON.stringify(likedPosts));
     }
 
-    // Database එක Update කිරීම
     await supabase.from('posts').update({ likes: (post.likes || 0) + 1 }).eq('id', post.id);
     
-    // තත්පර 1කින් පස්සේ තමයි ආයෙත් Like එකට අදාළ දේවල් නිදහස් කරන්නේ
     setTimeout(() => { isProcessingLike.current = false; }, 1000);
   };
 
@@ -220,7 +213,7 @@ const GuestFeedPost = ({ post, currentUserName, onRefresh, weddingSlug, coupleNa
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4"><h3 className="font-bold text-gray-800 text-base">Comments</h3><button onClick={() => setIsCommentOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button></div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
-              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
+              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
               {(post.comments || []).map((c: any) => {
                 const isHostComment = c.user_name === "Mr & Mrs" || c.user_name === coupleNames;
                 return (
@@ -326,7 +319,7 @@ export default function GalleryPage() {
     };
     fetchInitialData();
 
-    // 2. 🔥 THE MAGIC: Realtime Listener for INSTANT Theme Changes 🔥
+    // 2. Realtime Listener for INSTANT Theme Changes
     const realtimeSub = supabase
       .channel('theme-updates')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'weddings' }, (payload) => {
@@ -344,12 +337,12 @@ export default function GalleryPage() {
   const handleEnter = (e: React.FormEvent) => {
     e.preventDefault();
     if (tempName.trim()) { setGuestName(tempName); localStorage.setItem(`wedding_guest_name_${weddingSlug}`, tempName); setHasEntered(true); } 
-    else { showToast("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.", "error"); }
+    else { showToast("Please enter your name.", "error"); }
   };
 
   const saveNameChange = () => {
-    if (tempName.trim()) { setGuestName(tempName); localStorage.setItem(`wedding_guest_name_${weddingSlug}`, tempName); setIsEditNameOpen(false); showToast("නම වෙනස් කළා! ✨", "success"); } 
-    else { showToast("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.", "error"); }
+    if (tempName.trim()) { setGuestName(tempName); localStorage.setItem(`wedding_guest_name_${weddingSlug}`, tempName); setIsEditNameOpen(false); showToast("Name updated successfully! ✨", "success"); } 
+    else { showToast("Please enter your name.", "error"); }
   };
 
   const fetchData = async (isSilent = false) => {
@@ -363,6 +356,7 @@ export default function GalleryPage() {
     if (greetingsData) setGreetings(greetingsData.sort((a, b) => { if (a.is_pinned && !b.is_pinned) return -1; if (!a.is_pinned && b.is_pinned) return 1; return 0; }));
     if (!isSilent) setIsLoading(false);
   };
+  
   // --- Network Connection Monitor ---
   useEffect(() => {
     setIsOffline(!navigator.onLine);
@@ -415,11 +409,12 @@ export default function GalleryPage() {
     const files = Array.from(e.target.files) as File[];
     if (files.length === 0) return;
     if (!guestName.trim()) { setIsEditNameOpen(true); return; }
+    
     // --- File Type Validation ---
     const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
     if (invalidFiles.length > 0) {
-      showToast("කරුණාකර ඡායාරූප (JPG/PNG) පමණක් තෝරන්න!", "error");
-      return; // වරදක් තියෙනවා නම් අප්ලෝඩ් වෙන එක එතනින්ම නවත්වනවා
+      showToast("Please select images (JPG/PNG) only!", "error");
+      return; 
     }
 
     setUploading(true); setUploadProgressPercent(0); setIsUploadOpen(false);
@@ -489,7 +484,7 @@ export default function GalleryPage() {
     } catch (e) { showToast("Failed to send.", "error"); setUploading(false); }
   };
 
-  if (isValidWedding === false) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans"><div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm"><div className="text-6xl mb-4">💔</div><h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2><p className="text-gray-500 text-sm">කරුණාකර නිවැරදි ලින්ක් එක භාවිතා කරන්න.</p></div></div>;
+  if (isValidWedding === false) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans"><div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm"><div className="text-6xl mb-4">💔</div><h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2><p className="text-gray-500 text-sm">Please ensure you have the correct wedding link.</p></div></div>;
   if (isLoading || !weddingInfo) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans"><p className="text-gray-500 font-bold animate-pulse">Loading Magic...</p></div>;
 
   // Show Splash & Welcome Screen
@@ -501,10 +496,10 @@ export default function GalleryPage() {
           <div className={`w-20 h-20 ${activeTheme.iconBg} ${activeTheme.text} rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-inner transition-colors duration-500`}>💒</div>
           <h1 className="text-3xl font-extrabold text-gray-800 mb-1 font-serif italic">{weddingInfo.couple_names}</h1>
           <p className="text-sm text-gray-500 font-bold tracking-widest mb-8">{weddingInfo.wedding_date}</p>
-          <p className="text-gray-600 mb-4 text-sm font-medium">අපගේ මංගල දිනයට සාදරයෙන් පිළිගනිමු! කරුණාකර ඔබේ නම ඇතුළත් කරන්න.</p>
+          <p className="text-gray-600 mb-4 text-sm font-medium">Welcome to our special day! Please enter your name to join the gallery.</p>
           <form onSubmit={handleEnter} className="flex flex-col gap-4">
-            <input type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="ඔබේ නම (Your Name)" className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 text-center font-bold focus:outline-none ${activeTheme.outline} text-gray-800 ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} />
-            <button type="submit" className={`w-full ${activeTheme.main} text-white font-bold py-3.5 rounded-xl shadow-lg hover:opacity-90 transition transform hover:scale-[1.02] duration-500`}>ඇතුල් වන්න (Enter)</button>
+            <input type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="Enter Your Name" className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 text-center font-bold focus:outline-none ${activeTheme.outline} text-gray-800 ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} />
+            <button type="submit" className={`w-full ${activeTheme.main} text-white font-bold py-3.5 rounded-xl shadow-lg hover:opacity-90 transition transform hover:scale-[1.02] duration-500`}>Enter Gallery</button>
           </form>
         </div>
         <div className="mt-8 z-10 text-center"><p className="text-xs text-gray-400 font-bold">Powered by</p><p className={`text-sm ${activeTheme.text} font-extrabold tracking-widest transition-colors duration-500`}>MX TECH</p></div>
@@ -516,6 +511,7 @@ export default function GalleryPage() {
   return (
     <div className={`min-h-screen ${activeTheme.bgLight} font-sans pb-28 relative transition-colors duration-500`}>
       <style dangerouslySetInnerHTML={{__html: `@keyframes instaHeart { 0% { transform: scale(0); opacity: 0; } 15% { transform: scale(1.2); opacity: 1; } 30% { transform: scale(1); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(0); opacity: 0; } } .animate-insta-heart { animation: instaHeart 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; } @keyframes kenBurns1 { 0% { transform: scale(1); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(-2%, -2%); opacity: 0; } } @keyframes kenBurns2 { 0% { transform: scale(1.15) translate(2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 0; } } @keyframes kenBurns3 { 0% { transform: scale(1) translate(-2%, 2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1.15) translate(2%, -2%); opacity: 0; } } @keyframes kenBurns4 { 0% { transform: scale(1.15) translate(0, -2%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: scale(1) translate(0, 2%); opacity: 0; } } .animate-kb-0 { animation: kenBurns1 4.5s ease-in-out forwards; } .animate-kb-1 { animation: kenBurns2 4.5s ease-in-out forwards; } .animate-kb-2 { animation: kenBurns3 4.5s ease-in-out forwards; } .animate-kb-3 { animation: kenBurns4 4.5s ease-in-out forwards; }`}} />
+      
       {/* Network Warning Banner */}
       {(isOffline || isSlowConnection) && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[300] px-4 py-1.5 rounded-full shadow-lg text-xs font-bold flex items-center gap-2 animate-pulse ${isOffline ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
@@ -571,23 +567,23 @@ export default function GalleryPage() {
           <div className="flex flex-col gap-6 px-1">
             {!isGuestbookBlocked ? (
               <div className={`bg-white p-4 rounded-3xl shadow-sm border ${activeTheme.border} flex flex-col gap-3 transition-colors duration-500`}>
-                <h3 className="font-bold text-gray-800 text-sm">ඔබේ සුබපැතුම එක් කරන්න ✍️</h3>
-                <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} maxLength={500} placeholder="සුබපැතුම් පණිවිඩයක් ලියන්න (අකුරු 500යි)..." className={`border ${activeTheme.border} rounded-xl px-4 py-2 text-sm outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-30 text-gray-800 h-20 resize-none transition-colors duration-500`} />
-                <button onClick={() => handleSendGreeting('text')} className={`${activeTheme.main} text-white py-2.5 rounded-xl font-bold text-sm shadow hover:opacity-90 transition-colors duration-500`}>පණිවිඩය යවන්න</button>
+                <h3 className="font-bold text-gray-800 text-sm">Share Your Wishes ✍️</h3>
+                <textarea value={greetingText} onChange={(e) => setGreetingText(e.target.value)} maxLength={500} placeholder="Write a beautiful wish for the couple (Max 500 chars)..." className={`border ${activeTheme.border} rounded-xl px-4 py-2 text-sm outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-30 text-gray-800 h-20 resize-none transition-colors duration-500`} />
+                <button onClick={() => handleSendGreeting('text')} className={`${activeTheme.main} text-white py-2.5 rounded-xl font-bold text-sm shadow hover:opacity-90 transition-colors duration-500`}>Post Wish</button>
                 <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
-                  <span className="text-xs text-gray-500 font-medium">හඬ පටයක් (Voice Note) එකතු කරන්න:</span>
+                  <span className="text-xs text-gray-500 font-medium">Leave a voice message:</span>
                   {!isRecordingVoice ? (
-                    <button onClick={startVoiceRecording} className="bg-gray-100 text-gray-700 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:bg-gray-200 transition">🎙️ රෙකෝඩ් කිරීම ආරම්භ කරන්න</button>
+                    <button onClick={startVoiceRecording} className="bg-gray-100 text-gray-700 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:bg-gray-200 transition">🎙️ Start Recording</button>
                   ) : (
-                    <div className="flex items-center justify-between bg-red-50 p-2 rounded-xl border border-red-200"><span className="text-xs text-red-600 font-bold animate-pulse">Recording... 00:{recordingTime < 10 ? `0${recordingTime}` : recordingTime}</span><button onClick={stopVoiceRecording} className="bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold">නවත්වා යවන්න</button></div>
+                    <div className="flex items-center justify-between bg-red-50 p-2 rounded-xl border border-red-200"><span className="text-xs text-red-600 font-bold animate-pulse">Recording... 00:{recordingTime < 10 ? `0${recordingTime}` : recordingTime}</span><button onClick={stopVoiceRecording} className="bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold">Stop & Send</button></div>
                   )}
                   {voiceBlob && !isRecordingVoice && (
-                    <div className="flex items-center justify-between bg-green-50 p-2 rounded-xl border border-green-200 text-xs text-green-700 font-bold"><span>✅ හඬ පටය සූදානම්!</span><button onClick={() => handleSendGreeting('voice')} className="bg-green-600 text-white px-3 py-1 rounded-lg">යවන්න</button></div>
+                    <div className="flex items-center justify-between bg-green-50 p-2 rounded-xl border border-green-200 text-xs text-green-700 font-bold"><span>✅ Voice note ready!</span><button onClick={() => handleSendGreeting('voice')} className="bg-green-600 text-white px-3 py-1 rounded-lg">Send</button></div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 text-center flex flex-col items-center gap-2"><span className="text-3xl">🔒</span><p className="text-gray-600 font-bold text-sm">නව සුබපැතුම් එක් කිරීම තාවකාලිකව නවත්වා ඇත.</p></div>
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 text-center flex flex-col items-center gap-2"><span className="text-3xl">🔒</span><p className="text-gray-600 font-bold text-sm">The guestbook is currently closed for new entries.</p></div>
             )}
             <div className="flex flex-col gap-3">
               {greetings.map((greeting) => {
@@ -616,7 +612,7 @@ export default function GalleryPage() {
           <div className={`bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up relative text-center border-t-4 ${activeTheme.borderMain} transition-colors duration-500`}>
             <button onClick={() => setIsInfoOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl font-bold leading-none">×</button>
             <div className={`w-16 h-16 ${activeTheme.iconBg} ${activeTheme.text} rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-inner border ${activeTheme.border} transition-colors duration-500`}>ℹ️</div>
-            <p className="text-sm text-gray-700 mb-6 leading-relaxed font-medium px-2">ඔබේ මංගල දිනයටත් මේ වගේ Digital Gallery එකක් හදාගන්න කැමතිද? තාක්ෂණික සහය සහ නව ඇණවුම් සඳහා අපව සම්බන්ධ කරගන්න.</p>
+            <p className="text-sm text-gray-700 mb-6 leading-relaxed font-medium px-2">Would you like a beautiful Digital Gallery like this for your own wedding? Contact us for bookings and technical support.</p>
             <div className={`${activeTheme.bgLight} ${activeTheme.text} py-3 rounded-2xl font-bold text-sm border ${activeTheme.border} shadow-sm flex flex-col gap-1 transition-colors duration-500`}><span>Powered by MX Tech</span><span className="text-lg">📞 0785508792</span></div>
           </div>
         </div>
@@ -638,7 +634,7 @@ export default function GalleryPage() {
       {isEditNameOpen && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
-            <h3 className="font-bold text-gray-800 text-center text-lg">{guestName ? "ඔබේ නම වෙනස් කරන්න" : "කරුණාකර නම ඇතුළත් කරන්න"}</h3>
+            <h3 className="font-bold text-gray-800 text-center text-lg">{guestName ? "Update Your Name" : "Please Enter Your Name"}</h3>
             <div className="flex justify-center mb-2"><div className={`w-16 h-16 rounded-full ${activeTheme.iconBg} ${activeTheme.text} flex items-center justify-center text-3xl font-bold shadow-inner transition-colors duration-500`}>{tempName ? tempName.charAt(0).toUpperCase() : '👤'}</div></div>
             <input type="text" value={tempName} onChange={(e) => setTempName(e.target.value)} placeholder="Your Name..." className={`border-2 ${activeTheme.border} rounded-xl px-4 py-3 text-center font-bold text-gray-800 focus:outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} />
             <button onClick={saveNameChange} className={`${activeTheme.main} text-white font-bold py-3 rounded-xl shadow-md hover:opacity-90 transition-colors duration-500`}>Save Name</button>
@@ -672,7 +668,7 @@ export default function GalleryPage() {
             <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
               <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
               <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
-              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("කරුණාකර Music Play වීමට අවසර දෙන්න.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105 duration-500`}>▶ Tap to Start</button>
+              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("Please allow audio playback in your browser.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105 duration-500`}>▶ Tap to Start</button>
             </div>
           ) : isSlideshowFinished ? (
             <div className="text-center flex flex-col items-center justify-center animate-fade-in-up z-50 p-6">

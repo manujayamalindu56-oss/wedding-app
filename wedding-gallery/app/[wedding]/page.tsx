@@ -77,7 +77,7 @@ export default function WeddingWelcomePage() {
   const [guestName, setGuestName] = useState("");
   const [showSplash, setShowSplash] = useState(false);
   
-  // අලුත්: Theme State එක
+  // Theme State
   const [activeTheme, setActiveTheme] = useState<any>(THEMES.pink);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function WeddingWelcomePage() {
       localStorage.setItem(`wedding_guest_name_${weddingSlug}`, guestName);
       router.push(`/${weddingSlug}/gallery`);
     } else {
-      alert("කරුණාකර ඔබේ නම ඇතුළත් කරන්න.");
+      alert("Please enter your name to continue.");
     }
   };
 
@@ -130,7 +130,7 @@ export default function WeddingWelcomePage() {
       <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
         <div className="text-6xl mb-4">💔</div>
         <h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2>
-        <p className="text-gray-500 text-sm">කරුණාකර නිවැරදි ලින්ක් එක භාවිතා කරන්න.</p>
+        <p className="text-gray-500 text-sm">Please ensure you have the correct wedding link.</p>
       </div>
     </div>
   );
@@ -141,7 +141,7 @@ export default function WeddingWelcomePage() {
 
   return (
     <div className={`min-h-screen ${activeTheme.bgLight} flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden transition-colors duration-500`}>
-      {/* Background Decorations (Theme එකට ගැලපෙන විදිහට) */}
+      {/* Background Decorations */}
       <div className={`absolute top-[-10%] left-[-10%] w-64 h-64 ${activeTheme.main} rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse transition-colors duration-500`}></div>
       <div className={`absolute bottom-[-10%] right-[-10%] w-64 h-64 ${activeTheme.main} rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse transition-colors duration-500 delay-1000`}></div>
       
@@ -153,18 +153,18 @@ export default function WeddingWelcomePage() {
         <h1 className="text-3xl font-extrabold text-gray-800 mb-1 font-serif italic">{weddingInfo.couple_names}</h1>
         <p className="text-sm text-gray-500 font-bold tracking-widest mb-8">{weddingInfo.wedding_date}</p>
         
-        <p className="text-gray-600 mb-4 text-sm font-medium">අපගේ මංගල දිනයට සාදරයෙන් පිළිගනිමු! කරුණාකර ඔබේ නම ඇතුළත් කරන්න.</p>
+        <p className="text-gray-600 mb-4 text-sm font-medium">Welcome to our special day! Please enter your name to join the gallery.</p>
         
         <form onSubmit={handleEnter} className="flex flex-col gap-4">
           <input 
             type="text" 
             value={guestName} 
             onChange={(e) => setGuestName(e.target.value)} 
-            placeholder="ඔබේ නම (Your Name)" 
+            placeholder="Enter Your Name" 
             className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 text-center font-bold focus:outline-none ${activeTheme.outline} text-gray-800 ${activeTheme.bgLight} bg-opacity-50 transition-colors duration-500`} 
           />
           <button type="submit" className={`w-full ${activeTheme.main} text-white font-bold py-3.5 rounded-xl shadow-lg hover:opacity-90 transition transform hover:scale-[1.02] duration-500`}>
-            ඇතුල් වන්න (Enter)
+            Enter Gallery
           </button>
         </form>
       </div>

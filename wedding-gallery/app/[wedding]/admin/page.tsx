@@ -233,11 +233,11 @@ function AdminFeedPost({ post, onDeletePhoto, onDeleteFullPost, onDeleteComment,
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity">
           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh] animate-fade-in-up">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
-              <h3 className="font-bold text-gray-800 text-base">Host Comment Manager</h3>
+              <h3 className="font-bold text-gray-800 text-base">Comment Manager</h3>
               <button onClick={() => setIsCommentOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-bold leading-none">×</button>
             </div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
-              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">තවම කමෙන්ට්ස් නැත.</p>}
+              {(post.comments || []).length === 0 && <p className="text-center text-gray-400 text-sm py-8">No comments yet.</p>}
               {(post.comments || []).map((c: any) => {
                 const isHostComment = c.user_name === "Mr & Mrs";
                 return (
@@ -383,7 +383,7 @@ export default function AdminPage() {
     e.preventDefault();
     if (passwordInput === weddingInfo.host_password) {
       setIsAuthenticated(true); setShowSplash(true); localStorage.setItem(`isAdminAuth_${weddingSlug}`, "true"); 
-    } else { showToast("මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.", "error"); setPasswordInput(""); }
+    } else { showToast("Invalid password! Please try again.", "error"); setPasswordInput(""); }
   };
 
   const handleLogout = () => {
@@ -431,7 +431,7 @@ export default function AdminPage() {
     // --- File Type Validation ---
     const invalidFiles = files.filter(file => !file.type.match(/^image\/(jpeg|png|jpg|webp)$/));
     if (invalidFiles.length > 0) {
-      showToast("කරුණාකර ඡායාරූප (JPG/PNG) පමණක් තෝරන්න!", "error");
+      showToast("Please select images (JPG/PNG) only!", "error");
       return;
     }
 
@@ -463,27 +463,27 @@ export default function AdminPage() {
   };
 
   const handleDeletePhoto = (postId: string, photoIndex: number, currentUrls: string[]) => {
-    setConfirmDialog({ message: "මෙම නිශ්චිත ඡායාරූපය පමණක් මකා දැමීමට අවශ්‍යද?", onConfirm: async () => {
+    setConfirmDialog({ message: "Are you sure you want to delete this specific photo?", onConfirm: async () => {
       const updatedUrls = currentUrls.filter((_, idx) => idx !== photoIndex);
       if (updatedUrls.length === 0) await supabase.from('posts').delete().eq('id', postId);
       else await supabase.from('posts').update({ urls: updatedUrls }).eq('id', postId);
-      fetchData(true); showToast("ඡායාරූපය සාර්ථකව මකා දමන ලදී.", "success"); setConfirmDialog(null);
+      fetchData(true); showToast("Photo deleted successfully.", "success"); setConfirmDialog(null);
     }});
   };
 
   const handleDeleteFullPost = (postId: string) => { 
     setConfirmDialog({ 
-      message: "මෙම සම්පූර්ණ Post එකම මකා දැමීමට අවශ්‍ය බව විශ්වාසද?", 
+      message: "Are you sure you want to delete this entire post?", 
       onConfirm: async () => { 
         try {
           const { error } = await supabase.from('posts').delete().eq('id', postId);
           if (error) throw error;
           
           setPosts(prev => prev.filter(p => p.id !== postId));
-          showToast("Post එක මකා දමන ලදී.", "success"); 
+          showToast("Post deleted successfully.", "success"); 
         } catch (err: any) {
           console.error("Delete Error:", err);
-          showToast(`මකාදැමීම අසාර්ථකයි: ${err.message || 'Unknown error'}`, "error");
+          showToast(`Delete failed: ${err.message || 'Unknown error'}`, "error");
         } finally {
           setConfirmDialog(null); 
         }
@@ -491,11 +491,11 @@ export default function AdminPage() {
     }); 
   };
   
-  const handleDeleteComment = (commentId: string) => { setConfirmDialog({ message: "මෙම කමෙන්ට් එක මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('comments').delete().eq('id', commentId); fetchData(true); showToast("කමෙන්ට් එක මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
-  const handleDeleteGreeting = (id: string) => { setConfirmDialog({ message: "මෙම සුබපැතුම මකා දැමීමට අවශ්‍යද?", onConfirm: async () => { await supabase.from('greetings').delete().eq('id', id); fetchData(true); showToast("සුබපැතුම මකා දමන ලදී.", "success"); setConfirmDialog(null); }}); };
+  const handleDeleteComment = (commentId: string) => { setConfirmDialog({ message: "Are you sure you want to delete this comment?", onConfirm: async () => { await supabase.from('comments').delete().eq('id', commentId); fetchData(true); showToast("Comment deleted.", "success"); setConfirmDialog(null); }}); };
+  const handleDeleteGreeting = (id: string) => { setConfirmDialog({ message: "Are you sure you want to delete this wish?", onConfirm: async () => { await supabase.from('greetings').delete().eq('id', id); fetchData(true); showToast("Wish deleted.", "success"); setConfirmDialog(null); }}); };
 
-  const handlePinPost = async (postId: string, currentPinStatus: boolean) => { try { await supabase.from('posts').update({ is_pinned: !currentPinStatus }).eq('id', postId); fetchData(true); showToast(currentPinStatus ? "Post unpinned." : "Post pinned! 📌", "success"); } catch (error) { showToast("Pin කිරීම අසාර්ථකයි.", "error"); } };
-  const handlePinGreeting = async (id: string, currentPinStatus: boolean) => { try { await supabase.from('greetings').update({ is_pinned: !currentPinStatus }).eq('id', id); fetchData(true); showToast(currentPinStatus ? "Greeting unpinned." : "Greeting pinned! 📌", "success"); } catch (error) { showToast("Pin කිරීම අසාර්ථකයි.", "error"); } };
+  const handlePinPost = async (postId: string, currentPinStatus: boolean) => { try { await supabase.from('posts').update({ is_pinned: !currentPinStatus }).eq('id', postId); fetchData(true); showToast(currentPinStatus ? "Post unpinned." : "Post pinned! 📌", "success"); } catch (error) { showToast("Failed to pin.", "error"); } };
+  const handlePinGreeting = async (id: string, currentPinStatus: boolean) => { try { await supabase.from('greetings').update({ is_pinned: !currentPinStatus }).eq('id', id); fetchData(true); showToast(currentPinStatus ? "Wish unpinned." : "Wish pinned! 📌", "success"); } catch (error) { showToast("Failed to pin.", "error"); } };
 
   const handleAddComment = async (postId: string, text: string) => { await supabase.from('comments').insert([{ post_id: postId, user_name: "Mr & Mrs", text: text, is_admin: true, wedding_slug: weddingSlug }]); fetchData(true); showToast("Comment added.", "success"); };
   const handleAddHostGreeting = async (e: React.FormEvent) => { e.preventDefault(); if (newGreetingComment.trim() === "") return; await supabase.from('greetings').insert([{ wedding_slug: weddingSlug, user_name: "Mr & Mrs", type: "text", content: newGreetingComment }]); setNewGreetingComment(""); fetchData(true); showToast("Posted successfully.", "success"); };
@@ -503,25 +503,25 @@ export default function AdminPage() {
   const downloadMultipleImages = async (type: 'all' | 'fav') => {
     setIsDownloadMenuOpen(false);
     const urlsToDownload = type === 'all' ? posts.flatMap(p => p.urls) : posts.flatMap(p => p.selected_photos || []);
-    if (urlsToDownload.length === 0) { showToast("බාගත කිරීමට ඡායාරූප නොමැත!", "error"); return; }
+    if (urlsToDownload.length === 0) { showToast("No photos available to download!", "error"); return; }
     setUploading(true); setUploadProgressText("Zipping Photos..."); setUploadProgressPercent(50); 
     try {
       const zip = new JSZip();
       for (let i = 0; i < urlsToDownload.length; i++) { const response = await fetch(urlsToDownload[i]); zip.file(`Wedding_Photo_${i + 1}.jpg`, await response.blob()); }
       saveAs(await zip.generateAsync({ type: "blob" }), `Wedding_Photos_${type === 'all' ? 'All' : 'Favorites'}.zip`);
-      setUploading(false); showToast("සාර්ථකව බාගත කරන ලදී!", "success");
-    } catch (err) { setUploading(false); showToast("බාගත කිරීම අසාර්ථකයි.", "error"); }
+      setUploading(false); showToast("Downloaded successfully!", "success");
+    } catch (err) { setUploading(false); showToast("Download failed.", "error"); }
   };
 
   const downloadGuestbook = () => {
-    if (greetings.length === 0) { showToast("බාගත කිරීමට සුබපැතුම් නොමැත!", "error"); return; }
+    if (greetings.length === 0) { showToast("No wishes available to download!", "error"); return; }
     let textContent = `Guestbook Wishes - ${weddingInfo.couple_names}\n\n`;
     greetings.filter(g => g.type === 'text').forEach(g => { textContent += `Name: ${g.user_name}\nWish: "${g.content}"\n---\n`; });
     saveAs(new Blob([textContent], { type: "text/plain;charset=utf-8" }), "Guestbook_Wishes.txt");
-    showToast("සුබපැතුම් ලැයිස්තුව සාර්ථකව බාගත කරන ලදී!", "success");
+    showToast("Guestbook downloaded successfully!", "success");
   };
 
-  if (isValidWedding === false) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans"><div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm"><div className="text-6xl mb-4">💔</div><h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2><p className="text-gray-500 text-sm">කරුණාකර නිවැරදි ලින්ක් එක භාවිතා කරන්න.</p></div></div>;
+  if (isValidWedding === false) return <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans"><div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm"><div className="text-6xl mb-4">💔</div><h2 className="text-xl font-bold text-gray-800 mb-2">Wedding Not Found</h2><p className="text-gray-500 text-sm">Please ensure you have the correct link.</p></div></div>;
   if (isAuthChecking || !weddingInfo) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-500 font-bold animate-pulse">Loading Magic...</p></div>;
 
   if (!isAuthenticated) {
@@ -534,7 +534,7 @@ export default function AdminPage() {
           </div>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="Password..." className={`w-full border-2 ${activeTheme.border} rounded-xl px-4 py-3 text-center tracking-widest focus:outline-none ${activeTheme.outline} text-gray-800`} />
-            <button type="submit" className={`w-full ${activeTheme.main} text-white font-bold py-3 rounded-xl shadow-md hover:opacity-90 transition`}>ඇතුල් වන්න</button>
+            <button type="submit" className={`w-full ${activeTheme.main} text-white font-bold py-3 rounded-xl shadow-md hover:opacity-90 transition`}>Login</button>
           </form>
         </div>
         {toast && <div className={`fixed top-8 left-1/2 transform -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-fade-in-up transition-all ${toast.type === 'success' ? 'bg-green-500 text-white' : toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'}`}><span className="text-xl leading-none">{toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️'}</span><span className="tracking-wide">{toast.message}</span></div>}
@@ -696,7 +696,7 @@ export default function AdminPage() {
             <div className={`bg-white p-4 rounded-2xl shadow-sm border ${activeTheme.border} mb-6`}>
               <h4 className="font-bold text-gray-700 text-xs mb-2">Post as Mr & Mrs</h4>
               <form onSubmit={handleAddHostGreeting} className="flex gap-2">
-                <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} maxLength={500} placeholder="ස්තුති පණිවිඩයක් ලියන්න (අකුරු 500යි)..." className={`flex-1 border ${activeTheme.border} rounded-xl px-3 py-2 text-sm focus:outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-40 text-gray-800`} />
+                <input type="text" value={newGreetingComment} onChange={(e) => setNewGreetingComment(e.target.value)} maxLength={500} placeholder="Write a thank you message (Max 500 chars)..." className={`flex-1 border ${activeTheme.border} rounded-xl px-3 py-2 text-sm focus:outline-none ${activeTheme.outline} ${activeTheme.bgLight} bg-opacity-40 text-gray-800`} />
                 <button type="submit" className={`${activeTheme.main} text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition shadow-sm`}>Post</button>
               </form>
             </div>
@@ -745,7 +745,7 @@ export default function AdminPage() {
               {(() => { const currentPost = posts.find(p => p.id === fullscreenData.post.id); const isFav = currentPost?.selected_photos?.includes(fullscreenData.url); return isFav ? <span className="text-rose-500 leading-none mt-1">♥</span> : <span className="text-white leading-none mt-1">♡</span>; })()}
               <span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Fav</span>
             </button>
-            <button onClick={async () => { try { const res = await fetch(fullscreenData.url); const blob = await res.blob(); const a = document.createElement('a'); a.href = window.URL.createObjectURL(blob); a.download = `Wedding_Photo_${Date.now()}.jpg`; a.click(); } catch (e) { showToast("බාගත කිරීම අසාර්ථකයි.", "error"); } }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1"><span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save</span></button>
+            <button onClick={async () => { try { const res = await fetch(fullscreenData.url); const blob = await res.blob(); const a = document.createElement('a'); a.href = window.URL.createObjectURL(blob); a.download = `Wedding_Photo_${Date.now()}.jpg`; a.click(); } catch (e) { showToast("Download failed.", "error"); } }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1"><span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save</span></button>
             <button onClick={() => { handleDeletePhoto(fullscreenData.post.id, fullscreenData.idx, fullscreenData.post.urls); setFullscreenData(null); }} className="text-3xl text-white hover:text-red-500 transition-transform hover:scale-110 flex flex-col items-center gap-1"><span>🗑️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Del</span></button>
           </div>
         </div>
@@ -758,7 +758,7 @@ export default function AdminPage() {
             <div className="text-center flex flex-col items-center gap-6 animate-fade-in-up z-50 p-6">
               <h2 className="text-4xl font-serif italic text-white drop-shadow-lg">Cinematic Memory</h2>
               <p className="text-white/60 text-sm max-w-xs">Relive the best moments of our special day</p>
-              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("කරුණාකර Music Play වීමට අවසර දෙන්න.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105`}>▶ Tap to Start</button>
+              <button onClick={() => { setIsSlideshowPlaying(true); if (audioRef.current) { audioRef.current.play().catch(() => showToast("Please allow audio playback in your browser.", "error")); setIsPlayingMusic(true); } }} className={`mt-4 ${activeTheme.main} hover:opacity-90 text-white px-8 py-4 rounded-full text-lg font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-3 transition-transform transform hover:scale-105`}>▶ Tap to Start</button>
             </div>
           ) : isSlideshowFinished ? (
             <div className="text-center flex flex-col items-center justify-center animate-fade-in-up z-50 p-6">
