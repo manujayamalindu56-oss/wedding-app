@@ -751,9 +751,11 @@ export default function GalleryPage() {
                 } catch (e) {
                   showToast("Download failed.", "error");
                 }
-              }} className="text-3xl text-white hover:text-blue-400 transition-transform hover:scale-110 flex flex-col items-center gap-1">
-                <span>⬇️</span><span className="text-[10px] text-white/70 font-bold uppercase tracking-wider">Save Photo</span>
-              </button>
+              }} className="text-white hover:text-blue-200 transition-transform hover:scale-105 active:scale-95">
+                <div className="bg-white/20 hover:bg-white/30 border border-white/40 px-6 py-2 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] drop-shadow-md">Save</span>
+                </div>
+            </button>
             </div>
           )}
         </div>
